@@ -166,6 +166,11 @@ public:
 	{
 		return c_str();
 	}
+
+    const char * GetString()
+    {
+		return c_str();
+    }
     
     bool start_with(const char * s)
     {

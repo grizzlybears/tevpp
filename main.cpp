@@ -39,7 +39,6 @@ static void signal_cb(evutil_socket_t, short, void *);
 int
 main(int argc, char **argv)
 {
-	struct event_base *base;
 	struct evconnlistener *listener;
 	struct event *signal_event;
 
@@ -48,42 +47,51 @@ main(int argc, char **argv)
 	WSADATA wsa_data;
 	WSAStartup(0x0201, &wsa_data);
 #endif
+    try
+	{ 
+        SimpleEventLoop loop;
 
-	base = event_base_new();
-	if (!base) {
-		fprintf(stderr, "Could not initialize libevent!\n");
-		return 1;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(PORT);
+
+        listener = evconnlistener_new_bind(loop.get_event_base(), listener_cb, (void *)loop.get_event_base() ,
+                LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
+                (struct sockaddr*)&sin,
+                sizeof(sin));
+
+        if (!listener) {
+            fprintf(stderr, "Could not create a listener!\n");
+            return 1;
+        }
+
+        signal_event = evsignal_new(loop.get_event_base(), SIGINT, signal_cb, (void *)loop.get_event_base());
+
+        if (!signal_event || event_add(signal_event, NULL)<0) {
+            fprintf(stderr, "Could not create/add a signal event!\n");
+            return 1;
+        }
+
+
+        loop.run();
+
+        evconnlistener_free(listener);
+        event_free(signal_event);
+
+        printf("done\n");
+
 	}
-
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(PORT);
-
-	listener = evconnlistener_new_bind(base, listener_cb, (void *)base,
-	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
-	    (struct sockaddr*)&sin,
-	    sizeof(sin));
-
-	if (!listener) {
-		fprintf(stderr, "Could not create a listener!\n");
-		return 1;
+	catch (std::exception& ex)
+	{
+		LOG_ERROR("Exception in main(): %s\n", ex.what());
+        return 1;
 	}
-
-	signal_event = evsignal_new(base, SIGINT, signal_cb, (void *)base);
-
-	if (!signal_event || event_add(signal_event, NULL)<0) {
-		fprintf(stderr, "Could not create/add a signal event!\n");
-		return 1;
+	catch (...)
+	{
+		LOG_ERROR("Unknown exception in main()\n");
+        return 1;
 	}
-
-	event_base_dispatch(base);
-
-	evconnlistener_free(listener);
-	event_free(signal_event);
-	event_base_free(base);
-
-	printf("done\n");
-	return 0;
+    return 0;
 }
 
 static void
