@@ -1,8 +1,10 @@
 #
 # simple Makefile template :)
 #
-Target=CommMan
-Objs=$(patsubst %.cpp,%.o,$(wildcard *.cpp))
+Target=hello
+hello_objs:=$(patsubst %.cpp,%.o,$(wildcard *.cpp))
+CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
+Objs= $(hello_objs) $(CommMan_objs)
 
 
 
@@ -26,7 +28,8 @@ Objs=$(patsubst %.cpp,%.o,$(wildcard *.cpp))
 CC = g++
 CXX= g++
 
-CPPFLAGS=  -DDEBUG 
+
+CPPFLAGS=  -DDEBUG -I. -ICommMan
 CFLAGS= -ggdb3 -Wall -MMD  -pthread -fPIC
 CXXFLAGS= $(CFLAGS)
 
