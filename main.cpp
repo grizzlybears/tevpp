@@ -26,23 +26,50 @@
 #include <event2/event.h>
 
 #include "EventLoop.h"
+#include "listeners.h"
 static const char MESSAGE[] = "Hello, World!\n";
 
 static const int PORT = 9995;
 
-static void listener_cb(struct evconnlistener *, evutil_socket_t,
-    struct sockaddr *, int socklen, void *);
 static void conn_writecb(struct bufferevent *, void *);
 static void conn_eventcb(struct bufferevent *, short, void *);
 static void signal_cb(evutil_socket_t, short, void *);
 
-int
-main(int argc, char **argv)
+class RawHelloWorldListener
+    : public BaseTcpListener 
 {
-	struct evconnlistener *listener;
-	struct event *signal_event;
+public: 
+     RawHelloWorldListener (struct event_base * base)
+        :BaseTcpListener(base)
+    {
+    }
 
+    virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
+    {
+        struct event_base *base =  get_event_base();
+        struct bufferevent *bev;
+
+        bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+        if (!bev) {
+            fprintf(stderr, "Error constructing bufferevent!");
+            event_base_loopbreak(base);
+            return;
+        }
+        bufferevent_setcb(bev, NULL, conn_writecb, conn_eventcb, NULL);
+        bufferevent_enable(bev, EV_WRITE);
+        bufferevent_disable(bev, EV_READ);
+
+        bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
+    }
+
+};
+
+
+int main(int argc, char **argv)
+{
+	struct event *signal_event;
 	struct sockaddr_in sin;
+
 #ifdef WIN32
 	WSADATA wsa_data;
 	WSAStartup(0x0201, &wsa_data);
@@ -50,20 +77,12 @@ main(int argc, char **argv)
     try
 	{ 
         SimpleEventLoop loop;
-
         memset(&sin, 0, sizeof(sin));
         sin.sin_family = AF_INET;
         sin.sin_port = htons(PORT);
-
-        listener = evconnlistener_new_bind(loop.get_event_base(), listener_cb, (void *)loop.get_event_base() ,
-                LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
-                (struct sockaddr*)&sin,
-                sizeof(sin));
-
-        if (!listener) {
-            fprintf(stderr, "Could not create a listener!\n");
-            return 1;
-        }
+        
+        RawHelloWorldListener hehe( loop.get_event_base());
+        hehe.start_listen_on_addr((struct sockaddr*) &sin, sizeof(sin));
 
         signal_event = evsignal_new(loop.get_event_base(), SIGINT, signal_cb, (void *)loop.get_event_base());
 
@@ -75,7 +94,7 @@ main(int argc, char **argv)
 
         loop.run();
 
-        evconnlistener_free(listener);
+        // evconnlistener_free(listener);
         event_free(signal_event);
 
         printf("done\n");
@@ -92,26 +111,6 @@ main(int argc, char **argv)
         return 1;
 	}
     return 0;
-}
-
-static void
-listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
-    struct sockaddr *sa, int socklen, void *user_data)
-{
-	struct event_base *base = (struct event_base *) user_data;
-	struct bufferevent *bev;
-
-	bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-	if (!bev) {
-		fprintf(stderr, "Error constructing bufferevent!");
-		event_base_loopbreak(base);
-		return;
-	}
-	bufferevent_setcb(bev, NULL, conn_writecb, conn_eventcb, NULL);
-	bufferevent_enable(bev, EV_WRITE);
-	bufferevent_disable(bev, EV_READ);
-
-	bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
 }
 
 static void
@@ -142,9 +141,9 @@ static void
 signal_cb(evutil_socket_t sig, short events, void *user_data)
 {
 	struct event_base *base = (struct event_base *) user_data;
-	struct timeval delay = { 2, 0 };
+	struct timeval delay = { 1, 0 };
 
-	printf("Caught an interrupt signal; exiting cleanly in two seconds.\n");
+	printf("Caught an interrupt signal; exiting cleanly in 1 second.\n");
 
 	event_base_loopexit(base, &delay);
 }
