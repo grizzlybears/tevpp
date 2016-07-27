@@ -27,6 +27,8 @@
 
 #include "EventLoop.h"
 #include "listeners.h"
+#include "signals.h"
+
 static const char MESSAGE[] = "Hello, World!\n";
 
 static const int PORT = 9995;
@@ -64,10 +66,29 @@ public:
 
 };
 
+class QuitSignalHandler
+    : public BaseSignalHandler
+{
+public: 
+       QuitSignalHandler(SimpleEventLoop  * loop) 
+        : BaseSignalHandler(loop )
+    {
+    }
+
+    virtual void signal_cb()
+    {	
+        struct timeval delay = { 1, 0 };
+
+        LOG_DEBUG("Caught an interrupt signal; exiting cleanly in 1 second.\n");
+
+        event_base_loopexit( get_event_base(), &delay);
+
+    }
+
+};
 
 int main(int argc, char **argv)
 {
-	struct event *signal_event;
 	struct sockaddr_in sin;
 
 #ifdef WIN32
@@ -83,19 +104,12 @@ int main(int argc, char **argv)
         
         RawHelloWorldListener hehe( &loop);
         hehe.start_listen_on_addr((struct sockaddr*) &sin, sizeof(sin));
+ 
+        QuitSignalHandler control_c_handler(&loop);
 
-        signal_event = evsignal_new(loop.get_event_base(), SIGINT, signal_cb, (void *)loop.get_event_base());
-
-        if (!signal_event || event_add(signal_event, NULL)<0) {
-            fprintf(stderr, "Could not create/add a signal event!\n");
-            return 1;
-        }
-
+        control_c_handler.start_handle_signal( SIGINT );
 
         loop.run();
-
-        // evconnlistener_free(listener);
-        event_free(signal_event);
 
         printf("done\n");
 
@@ -137,13 +151,4 @@ conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 	bufferevent_free(bev);
 }
 
-static void
-signal_cb(evutil_socket_t sig, short events, void *user_data)
-{
-	struct event_base *base = (struct event_base *) user_data;
-	struct timeval delay = { 1, 0 };
 
-	printf("Caught an interrupt signal; exiting cleanly in 1 second.\n");
-
-	event_base_loopexit(base, &delay);
-}
