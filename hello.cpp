@@ -39,8 +39,8 @@ class RawHelloWorldListener
     : public BaseTcpListener 
 {
 public: 
-     RawHelloWorldListener (struct event_base * base)
-        :BaseTcpListener(base)
+     RawHelloWorldListener(SimpleEventLoop  * loop) 
+        :BaseTcpListener(loop )
     {
     }
 
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
         sin.sin_family = AF_INET;
         sin.sin_port = htons(PORT);
         
-        RawHelloWorldListener hehe( loop.get_event_base());
+        RawHelloWorldListener hehe( &loop);
         hehe.start_listen_on_addr((struct sockaddr*) &sin, sizeof(sin));
 
         signal_event = evsignal_new(loop.get_event_base(), SIGINT, signal_cb, (void *)loop.get_event_base());
