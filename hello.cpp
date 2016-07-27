@@ -35,7 +35,6 @@ static const int PORT = 9995;
 
 static void conn_writecb(struct bufferevent *, void *);
 static void conn_eventcb(struct bufferevent *, short, void *);
-static void signal_cb(evutil_socket_t, short, void *);
 
 class RawHelloWorldListener
     : public BaseTcpListener 
@@ -89,7 +88,6 @@ public:
 
 int main(int argc, char **argv)
 {
-	struct sockaddr_in sin;
 
 #ifdef WIN32
 	WSADATA wsa_data;
@@ -98,17 +96,16 @@ int main(int argc, char **argv)
     try
 	{ 
         SimpleEventLoop loop;
-        memset(&sin, 0, sizeof(sin));
-        sin.sin_family = AF_INET;
-        sin.sin_port = htons(PORT);
         
+        //1. listen on PORT
         RawHelloWorldListener hehe( &loop);
-        hehe.start_listen_on_addr((struct sockaddr*) &sin, sizeof(sin));
+        hehe.start_listen_on_addr2( CString("0.0.0.0:%d", PORT).c_str() );
  
+        //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
-
         control_c_handler.start_handle_signal( SIGINT );
 
+        //3. the main loop
         loop.run();
 
         printf("done\n");

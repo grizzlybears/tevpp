@@ -47,14 +47,7 @@ public:
 
     virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen) = 0;
 
-    virtual void start_listen_on_fd( evutil_socket_t fd, unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE)
-    {	
-        the_listener = evconnlistener_new( get_event_base(), trampoline, (void*)this, flags, -1 , fd);
-        if (!the_listener) 
-        {
-            throw SimpleException("Failed while start_listen on fd '%d', with flags=0x%x.\n", fd, flags);
-        }
-    }
+    virtual void start_listen_on_fd( evutil_socket_t fd, unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE);
 
 protected:
     SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
@@ -71,19 +64,12 @@ public:
     {
     }
     virtual void start_listen_on_addr(const struct sockaddr *sa, int socklen
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE )
-    {	
-        the_listener = evconnlistener_new_bind( get_event_base(), trampoline, (void*)this
-                , flags, -1 
-                , sa, socklen
-                );
-        if (!the_listener) 
-        {
-            throw SimpleException("Failed while start_listen on addr with flags=0x%x.\n",  flags);
-        }
-    }
+            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
 
-    //virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen);
+    virtual void start_listen_on_addr2(const char* addr
+            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+
+
 };
 
 #endif 
