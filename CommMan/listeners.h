@@ -72,5 +72,20 @@ public:
 
 };
 
+class BaseUnixDomainListener
+    : public BaseListener 
+{
+public: 
+    BaseUnixDomainListener(SimpleEventLoop  * loop) 
+        :BaseListener(loop)
+    {
+    }
+
+    virtual void start_listen_on_addr2(const char* addr
+            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+
+};
+
+
 #endif 
 

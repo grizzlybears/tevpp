@@ -4,6 +4,8 @@
   each client connection, and closes each connection once it is flushed.
 
   Where possible, it exits cleanly in response to a SIGINT (ctrl-c).
+
+  And now, it also listens on a unix domain socket.
 */
 
 
@@ -75,6 +77,24 @@ public:
 
 };
 
+class HelloWorldListenerUn
+    : public BaseUnixDomainListener 
+{
+public: 
+     HelloWorldListenerUn(SimpleEventLoop  * loop) 
+        :BaseUnixDomainListener(loop )
+    {
+    }
+
+    virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
+    {
+        HelloServerConnection* conn = new HelloServerConnection( evbase, fd );
+        conn->queue_to_send( MESSAGE, strlen(MESSAGE));
+    }
+
+};
+
+
 class QuitSignalHandler
     : public BaseSignalHandler
 {
@@ -111,7 +131,13 @@ int main(int argc, char **argv)
         QuitSignalHandler control_c_handler(&loop);
         control_c_handler.start_handle_signal( SIGINT );
 
-        //3. the main loop
+        //3. also listen on a unix domain socket
+        HelloWorldListenerUn haha( &loop);
+        haha.start_listen_on_addr2( ".haha" );
+ 
+
+        //
+        //4. the main loop
         loop.run();
 
         printf("done\n");
