@@ -1,11 +1,14 @@
 #
 # simple Makefile template :)
 #
-Target=hello
-hello_objs:=$(patsubst %.cpp,%.o,$(wildcard *.cpp))
-CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
-Objs= $(hello_objs) $(CommMan_objs)
+Target=$(hello_target)
 
+hello_target=hello 
+hello_src=hello.cpp
+hello_objs:=$(patsubst %.cpp,%.o,$(hello_src)) 
+
+
+CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
 
 
 
@@ -46,13 +49,13 @@ all:$(Target)
 
 -include $(Deps)
 
-$(Target): $(Objs)
-	$(CC) $(LDFLAGS) $(Objs) $(LOADLIBES) $(LDLIBS) -o $@
+$(hello_target): $(hello_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
 clean:
 	rm -fr $(Objs) $(Target) $(Deps)
 
-test:all
-	./$(Target)
+run_hello:$(hello_target)
+	./$(hello_target)
 
 
