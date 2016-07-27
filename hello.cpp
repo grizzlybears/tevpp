@@ -11,56 +11,66 @@
 #include <errno.h>
 #include <stdio.h>
 #include <signal.h>
-#ifndef WIN32
-#include <netinet/in.h>
-# ifdef _XOPEN_SOURCE_EXTENDED
-#  include <arpa/inet.h>
-# endif
-#include <sys/socket.h>
-#endif
-
-#include <event2/bufferevent.h>
-#include <event2/buffer.h>
-#include <event2/listener.h>
-#include <event2/util.h>
-#include <event2/event.h>
 
 #include "EventLoop.h"
 #include "listeners.h"
 #include "signals.h"
+#include "connections.h"
 
 static const char MESSAGE[] = "Hello, World!\n";
-
 static const int PORT = 9995;
 
-static void conn_writecb(struct bufferevent *, void *);
-static void conn_eventcb(struct bufferevent *, short, void *);
+class HelloServerConnection
+    :public BaseConnection
+{
+public:
+    HelloServerConnection(SimpleEventLoop* loop, evutil_socket_t fd, int options =  BEV_OPT_CLOSE_ON_FREE )
+         : BaseConnection(loop)
+    {
+        take_socket(fd, EV_WRITE , options);
+    }
 
-class RawHelloWorldListener
+    virtual void on_readable()
+    {
+    }
+
+    virtual void on_writable()
+    {
+        struct evbuffer *output = bufferevent_get_output(bev);
+        if (evbuffer_get_length(output) == 0) {
+            printf("flushed answer\n");
+            delete this;
+        }
+
+    }
+
+    virtual void on_conn_event(short events)
+    {
+        if (events & BEV_EVENT_EOF) {
+            printf("Connection closed.\n");
+        } else if (events & BEV_EVENT_ERROR) {
+            printf("Got an error on the connection: %s\n",
+                    strerror(errno));/*XXX win32*/
+        }
+        /* None of the other events can happen here, since we haven't enabled
+         * timeouts */
+        delete this;
+    }
+};
+
+class HelloWorldListener
     : public BaseTcpListener 
 {
 public: 
-     RawHelloWorldListener(SimpleEventLoop  * loop) 
+     HelloWorldListener(SimpleEventLoop  * loop) 
         :BaseTcpListener(loop )
     {
     }
 
     virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
     {
-        struct event_base *base =  get_event_base();
-        struct bufferevent *bev;
-
-        bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-        if (!bev) {
-            fprintf(stderr, "Error constructing bufferevent!");
-            event_base_loopbreak(base);
-            return;
-        }
-        bufferevent_setcb(bev, NULL, conn_writecb, conn_eventcb, NULL);
-        bufferevent_enable(bev, EV_WRITE);
-        bufferevent_disable(bev, EV_READ);
-
-        bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
+        HelloServerConnection* conn = new HelloServerConnection( evbase, fd );
+        conn->queue_to_send( MESSAGE, strlen(MESSAGE));
     }
 
 };
@@ -69,7 +79,7 @@ class QuitSignalHandler
     : public BaseSignalHandler
 {
 public: 
-       QuitSignalHandler(SimpleEventLoop  * loop) 
+    QuitSignalHandler(SimpleEventLoop  * loop) 
         : BaseSignalHandler(loop )
     {
     }
@@ -79,16 +89,12 @@ public:
         struct timeval delay = { 1, 0 };
 
         LOG_DEBUG("Caught an interrupt signal; exiting cleanly in 1 second.\n");
-
         event_base_loopexit( get_event_base(), &delay);
-
     }
-
 };
 
 int main(int argc, char **argv)
 {
-
 #ifdef WIN32
 	WSADATA wsa_data;
 	WSAStartup(0x0201, &wsa_data);
@@ -98,7 +104,7 @@ int main(int argc, char **argv)
         SimpleEventLoop loop;
         
         //1. listen on PORT
-        RawHelloWorldListener hehe( &loop);
+        HelloWorldListener hehe( &loop);
         hehe.start_listen_on_addr2( CString("0.0.0.0:%d", PORT).c_str() );
  
         //2. also we handle ctrl-C
@@ -123,29 +129,4 @@ int main(int argc, char **argv)
 	}
     return 0;
 }
-
-static void
-conn_writecb(struct bufferevent *bev, void *user_data)
-{
-	struct evbuffer *output = bufferevent_get_output(bev);
-	if (evbuffer_get_length(output) == 0) {
-		printf("flushed answer\n");
-		bufferevent_free(bev);
-	}
-}
-
-static void
-conn_eventcb(struct bufferevent *bev, short events, void *user_data)
-{
-	if (events & BEV_EVENT_EOF) {
-		printf("Connection closed.\n");
-	} else if (events & BEV_EVENT_ERROR) {
-		printf("Got an error on the connection: %s\n",
-		    strerror(errno));/*XXX win32*/
-	}
-	/* None of the other events can happen here, since we haven't enabled
-	 * timeouts */
-	bufferevent_free(bev);
-}
-
 
