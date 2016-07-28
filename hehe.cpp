@@ -36,13 +36,19 @@ public:
             fwrite(buf, 1, n, stdout);
         }
     }
-
-    virtual void on_writable()
-    {
-    }
-
+    
+    virtual void on_conn_event(short events)
+    { 
+        if (events & (BEV_EVENT_ERROR|BEV_EVENT_EOF)) 
+        {
+            // we quit.
+            event_base_loopexit( get_event_base(), NULL); 
+        }
+    
+        // let base class to the cleanup stuff
+        BaseConnection::on_conn_event( events);
+    };
 };
-
 
 class QuitSignalHandler
     : public BaseSignalHandler
@@ -68,13 +74,13 @@ int main(int argc, char **argv)
 	{ 
         SimpleEventLoop loop;
         HelloClientConnection*  hehe = new HelloClientConnection(&loop, "127.0.0.1", PORT);
+        (void)hehe;
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
         control_c_handler.start_handle_signal( SIGINT );
 
-        //
-        //4. the main loop
+        // the main loop
         loop.run();
 
         printf("done\n");

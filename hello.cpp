@@ -32,10 +32,6 @@ public:
         take_socket(fd, EV_WRITE , options);
     }
 
-    virtual void on_readable()
-    {
-    }
-
     virtual void on_writable()
     {
         struct evbuffer *output = bufferevent_get_output(bev);
@@ -43,21 +39,6 @@ public:
             printf("flushed answer\n");
             delete this;
         }
-
-    }
-
-    virtual void on_conn_event(short events)
-    {
-        if (events & BEV_EVENT_EOF) {
-            printf("Connection closed.\n");
-            delete this;
-        } else if (events & BEV_EVENT_ERROR) {
-            printf("Got an error on the connection: %s\n",
-                    strerror(errno));/*XXX win32*/
-            delete this;
-        }
-        /* None of the other events can happen here, since we haven't enabled
-         * timeouts */
     }
 };
 
@@ -135,7 +116,6 @@ int main(int argc, char **argv)
         //3. also listen on a unix domain socket
         HelloWorldListenerUn haha( &loop);
         haha.start_listen_on_addr2( ".haha" );
- 
 
         //
         //4. the main loop

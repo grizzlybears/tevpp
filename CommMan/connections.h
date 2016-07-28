@@ -43,8 +43,14 @@ public:
     static  void trampoline_writable(struct bufferevent *bev,  void *ctx);
     static  void trampoline_event(struct bufferevent *bev, short what, void *ctx);
 
-    virtual void on_readable() = 0;
-    virtual void on_writable() = 0;
+    virtual void on_readable() 
+    {
+    }
+
+    virtual void on_writable()
+    {
+    }
+
     virtual void on_conn_event(short what);
 
 protected:

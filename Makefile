@@ -67,4 +67,6 @@ clean:
 run_hello:$(hello_target)
 	./$(hello_target)
 
+test_hello:$(hello_target) $(hehe_target)
+	./test_hello.sh
 
