@@ -50,13 +50,14 @@ public:
     {
         if (events & BEV_EVENT_EOF) {
             printf("Connection closed.\n");
+            delete this;
         } else if (events & BEV_EVENT_ERROR) {
             printf("Got an error on the connection: %s\n",
                     strerror(errno));/*XXX win32*/
+            delete this;
         }
         /* None of the other events can happen here, since we haven't enabled
          * timeouts */
-        delete this;
     }
 };
 

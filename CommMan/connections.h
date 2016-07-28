@@ -27,9 +27,13 @@ public:
         return evbase->get_event_base();
     }
 
+    // attach 'this' to an existing fd
     virtual void take_socket(evutil_socket_t fd
             , short event_mask = EV_WRITE |  EV_READ
             , int   options =  BEV_OPT_CLOSE_ON_FREE);
+
+    // connect 'this' to tcp addr:port
+    virtual void connect_tcp(const char *hostname, int port);
 
     virtual void safe_release();
 
@@ -41,7 +45,7 @@ public:
 
     virtual void on_readable() = 0;
     virtual void on_writable() = 0;
-    virtual void on_conn_event(short what) = 0;
+    virtual void on_conn_event(short what);
 
 protected:
     SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
