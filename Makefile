@@ -1,7 +1,7 @@
 #
 # simple Makefile template :)
 #
-Target=$(hello_target) $(hehe_target)
+Target=$(hello_target) $(hehe_target) $(cat_target)
 
 hello_target=hello 
 hello_src=hello.cpp
@@ -12,10 +12,15 @@ hehe_target=hehe
 hehe_src=hehe.cpp
 hehe_objs:=$(patsubst %.cpp,%.o,$(hehe_src)) 
 
+# 'cat' in libevent style
+cat_target=evcat
+cat_src=cat.cpp
+cat_objs:=$(patsubst %.cpp,%.o,$(cat_src)) 
+
 
 CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
 
-Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs)
+Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs)
 
 #      以下摘自 `info make`
 #
@@ -60,6 +65,9 @@ $(hello_target): $(hello_objs) $(CommMan_objs)
 $(hehe_target): $(hehe_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+$(cat_target): $(cat_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
+
 
 clean:
 	rm -fr $(Objs) $(Target) $(Deps)
@@ -69,4 +77,7 @@ run_hello:$(hello_target)
 
 test_hello:$(hello_target) $(hehe_target)
 	./test_hello.sh
+
+test_cat:$(cat_target)
+	cat cat.cpp | ./$(cat_target)
 

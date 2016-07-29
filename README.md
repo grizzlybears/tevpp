@@ -16,7 +16,10 @@ Build dependences
 Build and run
 -------------
     $make             #build all samples
-    $make test_hello  #run the 'libevent hello-world sample' C++ ported :)
+    
+    $make test_hello  #run the 'libevent hello-world sample' C++ ported.
+    
+    $make test_cat    #run the 'cat' sample, which implement 'cat' in libevent style.
 
 
 
