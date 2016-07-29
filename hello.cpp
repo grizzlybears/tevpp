@@ -42,12 +42,12 @@ public:
     }
 };
 
-class HelloWorldListenerTcp
-    : public BaseTcpListener 
+class HelloWorldListener
+    : public BaseListener 
 {
 public: 
-     HelloWorldListenerTcp(SimpleEventLoop  * loop) 
-        :BaseTcpListener(loop )
+     HelloWorldListener(SimpleEventLoop  * loop) 
+        :BaseListener(loop )
     {
     }
 
@@ -58,24 +58,6 @@ public:
     }
 
 };
-
-class HelloWorldListenerUn
-    : public BaseUnixDomainListener 
-{
-public: 
-     HelloWorldListenerUn(SimpleEventLoop  * loop) 
-        :BaseUnixDomainListener(loop )
-    {
-    }
-
-    virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
-    {
-        HelloServerConnection* conn = new HelloServerConnection( evbase, fd );
-        conn->queue_to_send( MESSAGE, strlen(MESSAGE));
-    }
-
-};
-
 
 class QuitSignalHandler
     : public BaseSignalHandler
@@ -106,16 +88,16 @@ int main(int argc, char **argv)
         SimpleEventLoop loop;
         
         //1. listen on PORT
-        HelloWorldListenerTcp hehe( &loop);
-        hehe.start_listen_on_addr2( CString("0.0.0.0:%d", PORT).c_str() );
+        HelloWorldListener tcp_listener( &loop);
+        tcp_listener.start_listen_on_tcp( CString("0.0.0.0:%d", PORT).c_str() );
  
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
         control_c_handler.start_handle_signal( SIGINT );
 
         //3. also listen on a unix domain socket
-        HelloWorldListenerUn haha( &loop);
-        haha.start_listen_on_addr2( ".haha" );
+        HelloWorldListener un_listener( &loop);
+        un_listener.start_listen_on_un( ".haha" );
 
         //4. the main loop
         loop.run();

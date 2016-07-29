@@ -23,7 +23,7 @@ void BaseListener::start_listen_on_fd( evutil_socket_t fd, unsigned flags )
     }
 }
  
-void BaseTcpListener::start_listen_on_addr(const struct sockaddr *sa, int socklen
+void BaseListener::start_listen_on_addr(const struct sockaddr *sa, int socklen
         , unsigned flags  )
 {	
     the_listener = evconnlistener_new_bind( get_event_base(), trampoline, (void*)this
@@ -36,7 +36,7 @@ void BaseTcpListener::start_listen_on_addr(const struct sockaddr *sa, int sockle
     }
 }
 
-void BaseTcpListener::start_listen_on_addr2(const char * addr , unsigned flags  )
+void BaseListener::start_listen_on_tcp(const char * addr , unsigned flags  )
 {
     struct sockaddr_storage listen_on_addr; 
 	int socklen = sizeof(listen_on_addr);
@@ -60,7 +60,7 @@ void BaseTcpListener::start_listen_on_addr2(const char * addr , unsigned flags  
     }
 }
 
-void BaseUnixDomainListener::start_listen_on_addr2(const char * path , unsigned flags  )
+void BaseListener::start_listen_on_un(const char * path , unsigned flags  )
 {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));

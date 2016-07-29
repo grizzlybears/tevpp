@@ -49,43 +49,19 @@ public:
 
     virtual void start_listen_on_fd( evutil_socket_t fd, unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE);
 
+    virtual void start_listen_on_addr(const struct sockaddr *sa, int socklen
+            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+
+    virtual void start_listen_on_tcp(const char* addr
+            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+
+    virtual void start_listen_on_un(const char* addr
+            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+
 protected:
     SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
     struct evconnlistener *the_listener;
 };
-
-
-class BaseTcpListener
-    : public BaseListener 
-{
-public: 
-    BaseTcpListener(SimpleEventLoop  * loop) 
-        :BaseListener(loop)
-    {
-    }
-    virtual void start_listen_on_addr(const struct sockaddr *sa, int socklen
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
-
-    virtual void start_listen_on_addr2(const char* addr
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
-
-
-};
-
-class BaseUnixDomainListener
-    : public BaseListener 
-{
-public: 
-    BaseUnixDomainListener(SimpleEventLoop  * loop) 
-        :BaseListener(loop)
-    {
-    }
-
-    virtual void start_listen_on_addr2(const char* addr
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
-
-};
-
 
 #endif 
 
