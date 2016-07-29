@@ -42,11 +42,11 @@ public:
     }
 };
 
-class HelloWorldListener
+class HelloWorldListenerTcp
     : public BaseTcpListener 
 {
 public: 
-     HelloWorldListener(SimpleEventLoop  * loop) 
+     HelloWorldListenerTcp(SimpleEventLoop  * loop) 
         :BaseTcpListener(loop )
     {
     }
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
         SimpleEventLoop loop;
         
         //1. listen on PORT
-        HelloWorldListener hehe( &loop);
+        HelloWorldListenerTcp hehe( &loop);
         hehe.start_listen_on_addr2( CString("0.0.0.0:%d", PORT).c_str() );
  
         //2. also we handle ctrl-C
@@ -117,7 +117,6 @@ int main(int argc, char **argv)
         HelloWorldListenerUn haha( &loop);
         haha.start_listen_on_addr2( ".haha" );
 
-        //
         //4. the main loop
         loop.run();
 

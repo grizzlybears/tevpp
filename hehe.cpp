@@ -3,8 +3,6 @@
 
     It behaves like 'socat READLINE tcp:127.0.0.1:9995'.
 */
-
-
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
@@ -41,12 +39,10 @@ public:
     { 
         if (events & (BEV_EVENT_ERROR|BEV_EVENT_EOF)) 
         {
-            // we quit.
+            // we just quit.
             event_base_loopexit( get_event_base(), NULL); 
         }
-    
-        // let base class to the cleanup stuff
-        BaseConnection::on_conn_event( events);
+        // dont' let base class 'delete this'
     };
 };
 
@@ -61,10 +57,8 @@ public:
 
     virtual void signal_cb()
     {	
-        struct timeval delay = { 1, 0 };
-
-        LOG_DEBUG("Caught an interrupt signal; exiting cleanly in 1 second.\n");
-        event_base_loopexit( get_event_base(), &delay);
+        event_base_loopexit( get_event_base(), NULL); 
+        LOG_DEBUG("Caught an interrupt signal, just quit.\n");
     }
 };
 
@@ -73,8 +67,7 @@ int main(int argc, char **argv)
     try
 	{ 
         SimpleEventLoop loop;
-        HelloClientConnection*  hehe = new HelloClientConnection(&loop, "127.0.0.1", PORT);
-        (void)hehe;
+        HelloClientConnection  hehe(&loop, "127.0.0.1", PORT);
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
@@ -82,9 +75,6 @@ int main(int argc, char **argv)
 
         // the main loop
         loop.run();
-
-        printf("done\n");
-
 	}
 	catch (std::exception& ex)
 	{
