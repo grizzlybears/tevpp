@@ -53,6 +53,11 @@ public:
 
     virtual void on_conn_event(short what);
 
+    struct bufferevent * get_bev()
+    {
+        return bev;
+    }
+
 protected:
     SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
     struct bufferevent    *bev;

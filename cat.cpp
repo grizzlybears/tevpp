@@ -10,24 +10,27 @@
 #include "signals.h"
 #include "connections.h"
 
-class CatStdIn
+class CatStdIo
     :public BaseConnection
 {
 public:
-    CatStdIn(SimpleEventLoop* loop, int options =  BEV_OPT_CLOSE_ON_FREE )
+    CatStdIo(SimpleEventLoop* loop, int fd, int options =  BEV_OPT_CLOSE_ON_FREE )
          : BaseConnection(loop)
+           ,another(NULL)
     {
-        take_socket( STDIN_FILENO );
+        take_socket( fd );
     }
+
+    CatStdIo * another;
 
     virtual void on_readable()
     {
-        char buf[1024];
-        int n;
-        struct evbuffer *input = bufferevent_get_input(bev);
-        while ((n = evbuffer_remove(input, buf, sizeof(buf))) > 0) {
-            fwrite(buf, 1, n, stdout);
+        if (!another)
+        {
+            return;
         }
+        struct evbuffer *input = bufferevent_get_input(bev);
+        bufferevent_write_buffer( another->get_bev(), input);
     }
     
     virtual void on_conn_event(short events)
@@ -61,7 +64,11 @@ int main(int argc, char **argv)
     try
 	{ 
         SimpleEventLoop loop;
-        CatStdIn  miaomiao(&loop);
+
+        //1. dump stdin to stdout
+        CatStdIo   in(&loop , STDIN_FILENO );
+        CatStdIo   out(&loop, STDOUT_FILENO);
+        in.another = &out;
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
