@@ -30,7 +30,7 @@ public:
     // attach 'this' to an existing fd
     virtual void take_socket(evutil_socket_t fd
             , short event_mask = EV_WRITE |  EV_READ
-            , int   options =  BEV_OPT_CLOSE_ON_FREE);
+            , int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
 
     // connect 'this' to tcp addr:port
     virtual void connect_tcp(const char *hostname, int port);

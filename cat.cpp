@@ -18,7 +18,7 @@ public:
          : BaseConnection(loop)
            ,another(NULL)
     {
-        take_socket( fd );
+        take_socket( fd , EV_WRITE |  EV_READ, options ); // BEV_OPT_THREADSAFE causes 'bufferevent_socket_new fails on STDIO fd'
     }
 
     CatStdIo * another;

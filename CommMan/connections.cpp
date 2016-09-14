@@ -41,7 +41,7 @@ void BaseConnection::trampoline_event(struct bufferevent *bev, short what, void 
 
 void BaseConnection::take_socket(evutil_socket_t fd, short event_mask, int options)
 {
-    bev = bufferevent_socket_new( get_event_base(), fd, BEV_OPT_CLOSE_ON_FREE);
+    bev = bufferevent_socket_new( get_event_base(), fd, options);
     if (!bev) {
         throw SimpleException("Error constructing bufferevent on fd #%d", fd);
     }
