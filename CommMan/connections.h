@@ -19,7 +19,8 @@ public:
 
     virtual ~BaseConnection()
     {
-        safe_release();
+        //debug_printf("yes, dtor \n");
+        release_bev();
     }
 
     struct event_base * get_event_base()
@@ -32,10 +33,16 @@ public:
             , short event_mask = EV_WRITE |  EV_READ
             , int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
 
+    // attach 'this' to an existing bufferevent
+    virtual void take_bev(struct bufferevent    *bev
+            , short event_mask = EV_WRITE |  EV_READ
+            , int   options =  BEV_OPT_THREADSAFE );
+
+
     // connect 'this' to tcp addr:port
     virtual void connect_tcp(const char *hostname, int port);
 
-    virtual void safe_release();
+    virtual void release_bev();
 
     virtual int queue_to_send( const void *data, size_t size);
 
@@ -62,5 +69,35 @@ protected:
     SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
     struct bufferevent    *bev;
 };
+
+class EvBufAutoLocker
+{
+public:
+    struct evbuffer *buf; 
+    EvBufAutoLocker(struct evbuffer * to_lock)
+    {
+        buf = to_lock;
+        
+        if (!buf)
+        {
+            return;
+        }
+        evbuffer_lock(buf);
+    }
+
+    virtual ~EvBufAutoLocker()
+    { 
+        if (!buf)
+        {
+            return;
+        }
+        evbuffer_unlock(buf);
+        buf = NULL;
+    }
+
+};
+
+
+#define MAKE_SURE_OUTGOING_DIAGRAM_CONTINUE  EvBufAutoLocker __make_sure_msg_conti(bufferevent_get_output(get_bev()))
 
 #endif

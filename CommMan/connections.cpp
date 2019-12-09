@@ -1,10 +1,12 @@
 
 #include "connections.h"
 
-void BaseConnection::safe_release()
+void BaseConnection::release_bev()
 { 
     if (bev)
     {
+        bufferevent_setcb(bev, NULL, NULL, NULL, (void*) this);
+        //bufferevent_disable(bev, EV_READ|EV_WRITE);
         bufferevent_free(bev);
         bev = NULL;
     }
@@ -45,6 +47,18 @@ void BaseConnection::take_socket(evutil_socket_t fd, short event_mask, int optio
     if (!bev) {
         throw SimpleException("Error constructing bufferevent on fd #%d", fd);
     }
+
+    bufferevent_setcb(bev, trampoline_readable, trampoline_writable , trampoline_event , (void*) this);
+    bufferevent_enable(bev, event_mask);
+}
+
+// attach 'this' to an existing bufferevent
+void BaseConnection::take_bev(struct bufferevent * the_bev
+            , short event_mask
+            , int   options )
+{
+    release_bev();
+    this->bev = the_bev;
 
     bufferevent_setcb(bev, trampoline_readable, trampoline_writable , trampoline_event , (void*) this);
     bufferevent_enable(bev, event_mask);
