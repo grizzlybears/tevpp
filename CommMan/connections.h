@@ -42,6 +42,12 @@ public:
     // connect 'this' to tcp addr:port
     virtual void connect_tcp(const char *hostname, int port);
 
+    virtual void post_disconnected()
+    {
+        delete this;
+        // In case of  'this' is managed by outer, override this member
+    }
+
     virtual void release_bev();
 
     virtual int queue_to_send( const void *data, size_t size);

@@ -84,8 +84,9 @@ void BaseConnection::on_conn_event(short events)
     if (events & BEV_EVENT_EOF) {
         int fd = bufferevent_getfd(bev); 
         LOG_INFO("Connection closed on fd #%d.\n", fd);
-        delete this;
-    } else if (events & BEV_EVENT_ERROR) {
+        post_disconnected();
+    }
+    else if (events & BEV_EVENT_ERROR) {
         int fd = bufferevent_getfd(bev); 
         int last_err = errno;
         int err = bufferevent_socket_get_dns_error(bev);
@@ -100,7 +101,7 @@ void BaseConnection::on_conn_event(short events)
                 ,strerror(last_err)
                 );/*XXX win32*/
         }
-        delete this;
+        post_disconnected();
     }
 
 }
