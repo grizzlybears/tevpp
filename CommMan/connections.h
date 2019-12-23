@@ -28,6 +28,11 @@ public:
         return evbase->get_event_base();
     }
 
+    SimpleEventLoop  * get_app()
+    {
+        return evbase;
+    }
+
     // attach 'this' to an existing fd
     virtual void take_socket(evutil_socket_t fd
             , short event_mask = EV_WRITE |  EV_READ
