@@ -108,6 +108,16 @@ public:
 
 };
 
+class AddrInfo
+{
+public:
+    char peer_ipstr[INET6_ADDRSTRLEN];
+    int  peer_port;
+
+    void get_peer_info(int s);
+
+};
+
 
 #define MAKE_SURE_OUTGOING_DIAGRAM_CONTINUE  EvBufAutoLocker __make_sure_msg_conti(bufferevent_get_output(get_bev()))
 

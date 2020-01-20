@@ -1,6 +1,9 @@
 
 #include "connections.h"
 
+#include <arpa/inet.h>
+
+
 void BaseConnection::release_bev()
 { 
     if (bev)
@@ -92,7 +95,7 @@ void BaseConnection::on_conn_event(short events)
         int err = bufferevent_socket_get_dns_error(bev);
         if (err)
         {
-            LOG_WARN("DNS error: %s\n", evutil_gai_strerror(err));
+            LOG_WARN("DNS error: '%s' on fd #%d.\n", evutil_gai_strerror(err), fd);
         }
         else
         {
@@ -103,6 +106,31 @@ void BaseConnection::on_conn_event(short events)
         }
         post_disconnected();
     }
+    else if (events & BEV_EVENT_TIMEOUT) {
+        int fd = bufferevent_getfd(bev); 
+        LOG_INFO("Connection got time-out on fd #%d.\n", fd);
+        post_disconnected();
+    }
 
+}
+
+void AddrInfo::get_peer_info(int s)
+{ 
+    socklen_t len;
+    struct sockaddr_storage addr;
+
+    len = sizeof addr;
+    getpeername(s, (struct sockaddr*)&addr, &len);
+
+    // deal with both IPv4 and IPv6:
+    if (addr.ss_family == AF_INET) {
+        struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+        peer_port = ntohs(s->sin_port);
+        inet_ntop(AF_INET, &s->sin_addr, peer_ipstr, sizeof peer_ipstr);
+    } else { // AF_INET6
+        struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
+        peer_port = ntohs(s->sin6_port);
+        inet_ntop(AF_INET6, &s->sin6_addr, peer_ipstr, sizeof peer_ipstr);
+    }
 }
 
