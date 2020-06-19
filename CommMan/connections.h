@@ -13,7 +13,7 @@ class BaseConnection
 {
 public:
     BaseConnection(SimpleEventLoop  * loop)
-        :evbase(loop), bev(NULL)
+        :my_app(loop), bev(NULL)
     {
     }
 
@@ -25,12 +25,12 @@ public:
 
     struct event_base * get_event_base()
     {
-        return evbase->get_event_base();
+        return my_app->get_event_base();
     }
 
     SimpleEventLoop  * get_app()
     {
-        return evbase;
+        return my_app;
     }
 
     // attach 'this' to an existing fd
@@ -77,7 +77,7 @@ public:
     }
 
 protected:
-    SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
+    SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.
     struct bufferevent    *bev;
 };
 

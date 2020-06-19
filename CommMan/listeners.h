@@ -13,7 +13,7 @@ class BaseListener
 {
 public:
     BaseListener(SimpleEventLoop  * loop)
-        :evbase(loop)
+        :my_app(loop)
          ,the_listener(NULL)
     {
     }
@@ -30,7 +30,7 @@ public:
 
     struct event_base * get_event_base()
     {
-        return evbase->get_event_base();
+        return my_app->get_event_base();
     }
 
     /**
@@ -59,7 +59,7 @@ public:
             , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
 
 protected:
-    SimpleEventLoop       *evbase;  // just ref, dont touch its life cycle.
+    SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.
     struct evconnlistener *the_listener;
 };
 

@@ -77,7 +77,7 @@ void BaseConnection::connect_tcp(const char *hostname, int port)
 
     bufferevent_setcb(bev, trampoline_readable, trampoline_writable , trampoline_event , (void*) this);
     bufferevent_enable(bev, EV_READ|EV_WRITE);
-    bufferevent_socket_connect_hostname( bev, evbase->get_dns_base(), AF_UNSPEC, hostname, port);
+    bufferevent_socket_connect_hostname( bev, my_app->get_dns_base(), AF_UNSPEC, hostname, port);
 }
 
 void BaseConnection::on_conn_event(short events)

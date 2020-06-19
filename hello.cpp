@@ -53,7 +53,7 @@ public:
 
     virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
     {
-        HelloServerConnection* conn = new HelloServerConnection( evbase, fd );
+        HelloServerConnection* conn = new HelloServerConnection( my_app, fd );
         conn->queue_to_send( MESSAGE, strlen(MESSAGE));
     }
 
