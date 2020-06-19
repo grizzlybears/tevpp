@@ -134,3 +134,114 @@ void AddrInfo::get_peer_info(int s)
     }
 }
 
+void  MannagedConnection::release_self()
+{
+    if (is_managed())
+    {
+        debug_printf("unreg from clientman then delete '%s'\n", dump_2_str().c_str());
+        get_pipe_man() -> unregister_connection( get_id() );
+    }
+    else
+    {
+        debug_printf("directly delete '%s'\n", dump_2_str().c_str());
+        delete this;
+    }
+}
+
+CString OuterPipeMan::dump_2_str()
+{
+    CString s;
+    iterator it;
+    for (it = begin(); it != end() ; it++)
+    { 
+        MannagedConnection* the_pipe = it->second; 
+        s.format_append("%s\n" , the_pipe->dump_2_str().c_str());
+    }
+
+    return s;
+}
+
+OuterPipeMan::OuterPipeMan(SimpleEventLoop  * loop)
+    :TimerHandler(loop),event_loop(loop)
+{  
+
+    next_pipe_id =0;  
+
+    //struct timeval ten_sec = { HB_CHECK_INTERVAL , 0 };
+    //start_timer(ten_sec);
+ 
+}
+
+OuterPipeMan::~OuterPipeMan()
+{ 
+}
+
+void OuterPipeMan::timer_cb()
+{
+    //debug_printf("Let's check heartbeat.\n");
+    iterator it;
+
+    while (1)
+    {
+        int finished = 1;
+
+        for (it = begin(); it != end() ; it++)
+        { 
+            MannagedConnection * the_client = it->second; 
+            if (! the_client->is_alive())
+            {
+                LOG_WARN("'%s' is no longer alive, drop it.\n" , the_client->dump_2_str().c_str());
+                unregister_connection(  the_client->get_id() );
+                finished = 0;
+                break;
+            }
+        }
+
+        if ( finished)
+        {
+            break;
+        }
+    }
+}
+
+
+unsigned long OuterPipeMan::allocate_new_id()
+{
+    AutoLocker _yes_locked( MyBase::lock ); 
+
+    unsigned long  r=  next_pipe_id;
+    next_pipe_id ++;
+
+    return r;
+    
+}
+
+// 从此OuterPipeMan来管理 pipe
+int  OuterPipeMan::register_connection(MannagedConnection* pipe  )
+{
+    //AutoLocker _yes_locked( lock );
+    unsigned long new_id = allocate_new_id();
+    int r =  add_new_item(new_id, pipe);
+    if ( r)
+    {
+        return r;
+    }
+
+    pipe->take_it(new_id);
+
+    return 0;
+}
+
+
+void OuterPipeMan::unregister_connection(int client_id)
+{
+    //AutoLocker _yes_locked( lock );
+    MannagedConnection  * p = get_item(client_id);
+    if (!p)
+    {
+        return;
+    }
+
+    remove_item( client_id);
+}
+

@@ -8,6 +8,9 @@
 
 #include "utils.h"
 #include "EventLoop.h"
+#include "thread_utils.h"
+#include "timers.h"
+#include <deque>
 
 class BaseConnection
 {
@@ -120,5 +123,114 @@ public:
 
 
 #define MAKE_SURE_OUTGOING_DIAGRAM_CONTINUE  EvBufAutoLocker __make_sure_msg_conti(bufferevent_get_output(get_bev()))
+
+class OuterPipeMan;
+// 
+class MannagedConnection
+    :public BaseConnection 
+{
+public:
+    typedef BaseConnection  MyBase;
+
+    MannagedConnection(SimpleEventLoop  * loop)
+        :BaseConnection(loop)
+    { 
+        managed = 0;
+        pipe_id = 0;
+        pipe_type = 0;
+  
+    }
+
+    virtual ~MannagedConnection()
+    {
+    } 
+    
+    int managed;     // 是否被CommandPan管理
+    unsigned long  pipe_id;  // 在OuterPipeMan中唯一识别每个command pipe
+
+    int  pipe_type;  // 一个app可以有多种外界通信管道，留个口子区分一下
+                     // 这里没法做 enum，搞成摸版参数又太矫情了，留待导出类去#dfine常量吧
+   
+    int is_managed() const
+    {
+        return managed;
+    }
+
+    unsigned long get_id() const
+    {
+        return pipe_id;
+    }
+    
+    // 接受外界管理
+    void take_it(unsigned long new_id)
+    {
+        pipe_id = new_id;
+        managed = 1;
+    }
+
+    
+    virtual void release_self();
+   
+    virtual void post_disconnected() 
+    {
+        release_self();
+    }
+
+
+    virtual int is_alive()
+    {
+        return 1;
+    }
+
+
+    virtual CString dump_2_str() const = 0 ;
+
+    // 获得管理所有管道的外界容器
+    virtual OuterPipeMan * get_pipe_man() = 0;
+};
+
+class OuterPipeMan
+    :public  SharedPtrMan<unsigned long /*ID*/ , MannagedConnection >
+     ,public TimerHandler
+{
+public:
+    typedef SharedPtrMan<unsigned long /*ID*/ ,MannagedConnection  >  MyBase;
+
+    static  OuterPipeMan * singleton;
+    OuterPipeMan(SimpleEventLoop  * loop);
+    virtual ~OuterPipeMan();
+
+
+    virtual void timer_cb();
+
+
+    // 交由OuterPipeMan来管理
+    int  register_connection(MannagedConnection* client  );
+    void unregister_connection(int command_pipe_id);
+ 
+    
+    CString dump_2_str();
+    SimpleEventLoop* event_loop;
+
+    unsigned long allocate_new_id();
+
+    unsigned long next_pipe_id ;
+
+};
+
+// 此异常特殊，直达顶层，中间层的catch ( std::exception& ) 不能抓住
+// 在处理报文过程中抛出本异常，就代表‘断开连接，不干了’ 
+class ConnectionGoneException 
+{
+public:
+    ConnectionGoneException(const std::string& str):_mess(str) {} 
+    
+    virtual ~ConnectionGoneException() throw () {}
+    virtual const char* what() const throw () {return _mess.c_str();}
+
+protected:
+    CString  _mess;
+};
+
 
 #endif
