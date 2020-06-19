@@ -10,8 +10,8 @@
 class TimerHandler
 {
 public: 
-     TimerHandler(SimpleEventLoop  * loop)
-        :evbase(loop)
+     TimerHandler(SimpleEventLoop  * the_loop)
+        :loop(the_loop)
          ,timer_event(NULL)
     {
     }
@@ -30,11 +30,16 @@ public:
 
     struct event_base * get_event_base()
     {
-        return evbase->get_event_base();
+        return loop->get_event_base();
+    }
+    
+    SimpleEventLoop  * get_app()
+    {
+        return loop;
     }
 
 protected: 
-    SimpleEventLoop  *evbase;  // just ref, dont touch its life cycle.
+    SimpleEventLoop  *loop;  // just ref, dont touch its life cycle.
 	struct event     *timer_event;
 
 };

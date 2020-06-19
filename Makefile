@@ -1,7 +1,7 @@
 #
 # simple Makefile template :)
 #
-Target=$(hello_target) $(hehe_target) $(cat_target)
+Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target)
 
 hello_target=hello 
 hello_src=hello.cpp
@@ -17,10 +17,15 @@ cat_target=evcat
 cat_src=cat.cpp
 cat_objs:=$(patsubst %.cpp,%.o,$(cat_src)) 
 
+# demo of 'worker thread'
+wt_target=wt_demo
+wt_src=wt_demo.cpp
+wt_objs:=$(patsubst %.cpp,%.o,$(wt_src)) 
+
 
 CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
 
-Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs)
+Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs)
 
 #      以下摘自 `info make`
 #
@@ -43,12 +48,12 @@ CXX= g++
 
 
 CPPFLAGS=  -DDEBUG -I. -ICommMan
-CFLAGS= -ggdb3 -Wall -MMD  -pthread -fPIC
+CFLAGS= -ggdb3 -Wall -MMD  -pthread -fPIC -std=c++11
 CXXFLAGS= $(CFLAGS)
 
 LDFLAGS= -pthread 
 LOADLIBES=
-LDLIBS= -levent
+LDLIBS= -levent -levent_pthreads
 
 
 ##########################################################################
@@ -68,6 +73,9 @@ $(hehe_target): $(hehe_objs) $(CommMan_objs)
 $(cat_target): $(cat_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+$(wt_target): $(wt_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
+
 
 clean:
 	rm -fr $(Objs) $(Target) $(Deps)
@@ -80,4 +88,7 @@ test_hello:$(hello_target) $(hehe_target)
 
 test_cat:$(cat_target)
 	cat cat.cpp | ./$(cat_target)
+
+test_wt:$(wt_target) 
+	./$(wt_target) 
 

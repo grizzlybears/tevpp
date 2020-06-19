@@ -36,10 +36,10 @@
                );   \
 	    } while(0)
 
-#define LOG_DEBUG(format, ...) LOG( "Debug|%s:(%d)|"format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
-#define LOG_INFO(format, ...)  LOG( "Info |%s:(%d)|"format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
-#define LOG_WARN(format, ...)  LOG( "Warn |%s:(%d)|"format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
-#define LOG_ERROR(format, ...) LOG( "Error|%s:(%d)|"format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
+#define LOG_DEBUG(format, ...) LOG( "Debug|%s:(%d)|" format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
+#define LOG_INFO(format, ...)  LOG( "Info |%s:(%d)|" format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
+#define LOG_WARN(format, ...)  LOG( "Warn |%s:(%s:%d)|" format, __FUNCTION__ , __FILE__, __LINE__, ## __VA_ARGS__)
+#define LOG_ERROR(format, ...) LOG( "Error|%s:(%s:%d)|" format, __FUNCTION__ , __FILE__, __LINE__, ## __VA_ARGS__)
 
 
 #define SIMPLE_LOG_LIBC_ERROR( where, what ) \
@@ -72,6 +72,13 @@ protected:
     CAtlStringA  _mess;
 };
 
+#define LOG_THEN_THROW(format, ...) \
+    do {\
+        LOG_ERROR(format, ## __VA_ARGS__ );\
+        throw SimpleException(format, ## __VA_ARGS__ ); \
+    } while(0)
+
+
 template <typename Drived, typename Base>
 Drived * checked_cast(Base * b, Drived* d)
 {
@@ -93,15 +100,27 @@ public:
 
 	bool has_key(const K& which)const
 	{
-        typename MyBase::const_iterator it= find(which);
+        typename MyBase::const_iterator it= MyBase::find(which);
 		return ( MyBase::end() != it);
 	}
 
 	bool has_key2(const K& which,typename MyBase::iterator& the_it)
 	{
-		the_it= find(which);
+		the_it= MyBase::find(which);
 		return ( MyBase::end() != the_it);
 	}
+
+    V* just_get_ptr(const K& which)
+    {
+        typename MyBase::iterator it= MyBase::find(which);
+        if (MyBase::end() == it)
+        {
+            return NULL;
+        }
+
+        return & it->second;
+
+    }
 };
 
 
@@ -321,9 +340,9 @@ const T* is_null( const T* x , const T* y )
 	#define debug_printf(format, ... )  \
     do { \
         int colorful_fp = isatty ( fileno(stderr));\
-        fprintf( stderr, "%s%s(%d) %s:%s "format \
+        fprintf( stderr, "%s%s(%d) %s (t=%lu):%s " format \
                 , colorful_fp? _CONSOLE_MAKE_GREEN:""\
-                ,  __FILE__, __LINE__, __func__  \
+                ,  __FILE__, __LINE__, __func__, (unsigned long)pthread_self()  \
                 ,  colorful_fp? _CONSOLE_RESET_COLOR:"" \
                 ,  ##__VA_ARGS__ );\
     } while(0)
@@ -331,7 +350,7 @@ const T* is_null( const T* x , const T* y )
     #define debug_printf_yellow(format, ... )  \
     do { \
         int colorful_fp = isatty ( fileno(stderr));\
-        fprintf( stderr, "%s(%d) %s%s: "format \
+        fprintf( stderr, "%s(%d) %s%s: " format \
                 ,  __FILE__, __LINE__, __func__ \
                 , colorful_fp? _CONSOLE_MAKE_YELLOW:""\
                 ,  ##__VA_ARGS__ );\
@@ -363,5 +382,27 @@ public:
 #endif // DEBUG_TRACE
 
 
+#define MakeInt64(a,b) ( (((uint64_t)(uint32_t)(a)) <<32)  | (uint32_t)b  )
+#define LowInt32(a)    (  uint32_t ( (a) & 0x00000000FFFFFFFFUL)  )
+#define HighInt32(a)   (  uint32_t ( ((a) & 0xFFFFFFFF00000000UL) >> 32  )  )
+
+#define MakeInt32(a,b) ( (((uint32_t)(uint16_t)(a)) << 16)  | (uint16_t)b  )
+#define LowInt16(a)    (  (uint32_t)  ( (a) & 0x0000FFFFU)  )
+#define HighInt16(a)   (  (uint32_t)  ( ((a) & 0xFFFF0000U) >> 16 ))
+
+#define TurnOnBitHigh16(who, which_bit) ( (who) |=    ( (uint32_t)( which_bit)) << 16 )
+#define TurnOffBitHigh16(who, which_bit) ( (who) &=  ~( ((uint32_t)( which_bit)) << 16 ))
+
+
+int32_t inline  parse_int(const char* buf, size_t buf_size)
+{
+    char buf2[buf_size + 1];
+    buf2[buf_size]= 0;
+
+    memcpy((void*)buf2,(void*)buf, buf_size);
+
+    return atoi(buf2);
+}
+#define PARSE_INT(a) parse_int( a, sizeof(a))
 
 #endif

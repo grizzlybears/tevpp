@@ -15,7 +15,7 @@ void  TimerHandler::start_timer(const struct timeval& interval)
         throw SimpleException("Timer already started");
     }
     
-    timer_event = event_new(evbase->get_event_base() 
+    timer_event = event_new(loop->get_event_base() 
             , -1
             , EV_PERSIST
             , trampoline, (void*)this);
