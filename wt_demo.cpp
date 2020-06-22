@@ -103,6 +103,7 @@ public:
 
 int main(int argc, char **argv)
 {
+    evthread_use_pthreads();
     try
 	{ 
         DemoApp loop;
