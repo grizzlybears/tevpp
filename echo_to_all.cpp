@@ -7,12 +7,7 @@
 
   And now, it also listens on a unix domain socket.
 */
-
-
-#include <string.h>
-#include <errno.h>
 #include <stdio.h>
-#include <signal.h>
 
 #include "EventLoop.h"
 #include "listeners.h"
@@ -123,9 +118,7 @@ public:
 
             the_pipe->send_str(s);
         }
-
     }
-
 
 };
 
@@ -147,10 +140,9 @@ public:
 
         if (i)
         {
-            LOG_ERROR();
+            LOG_ERROR("Failed in register new incoming conn.");
             free(conn); 
         }
-
     }
 
 };
@@ -181,7 +173,6 @@ void print_hint()
     printf("\tctrl-c to exit\n");
 
 }
-
 
 int main(int argc, char **argv)
 {

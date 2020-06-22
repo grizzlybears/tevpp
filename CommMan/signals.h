@@ -1,6 +1,7 @@
 #ifndef  __SIGNALS_H__
 #define  __SIGNALS_H__
 
+#include <signal.h>
 #include <event2/event.h>
 #include <event2/util.h>
 
