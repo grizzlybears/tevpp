@@ -5,6 +5,7 @@
 #include <event2/util.h>
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
+#include <event2/thread.h>
 
 #include "utils.h"
 #include "EventLoop.h"
@@ -59,6 +60,11 @@ public:
     virtual void release_bev();
 
     virtual int queue_to_send( const void *data, size_t size);
+
+    void send_str(const CString& s)
+    {
+        queue_to_send( (const void *)s.c_str(),  s.size());
+    }
 
     static  void trampoline_readable(struct bufferevent *bev,  void *ctx);
     static  void trampoline_writable(struct bufferevent *bev,  void *ctx);
@@ -126,13 +132,13 @@ public:
 
 class OuterPipeMan;
 // 
-class MannagedConnection
+class OuterPipe
     :public BaseConnection 
 {
 public:
     typedef BaseConnection  MyBase;
 
-    MannagedConnection(SimpleEventLoop  * loop)
+    OuterPipe(SimpleEventLoop  * loop)
         :BaseConnection(loop)
     { 
         managed = 0;
@@ -141,7 +147,7 @@ public:
   
     }
 
-    virtual ~MannagedConnection()
+    virtual ~OuterPipe()
     {
     } 
     
@@ -190,11 +196,11 @@ public:
 };
 
 class OuterPipeMan
-    :public  SharedPtrMan<unsigned long /*ID*/ , MannagedConnection >
+    :public  SharedPtrMan<unsigned long /*ID*/ , OuterPipe>
      ,public TimerHandler
 {
 public:
-    typedef SharedPtrMan<unsigned long /*ID*/ ,MannagedConnection  >  MyBase;
+    typedef SharedPtrMan<unsigned long /*ID*/ , OuterPipe>  MyBase;
 
     static  OuterPipeMan * singleton;
     OuterPipeMan(SimpleEventLoop  * loop);
@@ -205,8 +211,8 @@ public:
 
 
     // 交由OuterPipeMan来管理
-    int  register_connection(MannagedConnection* client  );
-    void unregister_connection(int command_pipe_id);
+    int  register_connection(OuterPipe* client  );
+    void unregister_connection(int pipe_id);
  
     
     CString dump_2_str();

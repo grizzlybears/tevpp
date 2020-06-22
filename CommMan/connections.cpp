@@ -127,14 +127,22 @@ void AddrInfo::get_peer_info(int s)
         struct sockaddr_in *s = (struct sockaddr_in *)&addr;
         peer_port = ntohs(s->sin_port);
         inet_ntop(AF_INET, &s->sin_addr, peer_ipstr, sizeof peer_ipstr);
-    } else { // AF_INET6
+    } 
+    else if (addr.ss_family == AF_INET6)
+    { // AF_INET6
         struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
         peer_port = ntohs(s->sin6_port);
         inet_ntop(AF_INET6, &s->sin6_addr, peer_ipstr, sizeof peer_ipstr);
     }
+    else
+    {
+        peer_port = 0;
+        strncpy(peer_ipstr, "non-inet peer", sizeof peer_ipstr);
+    }
+
 }
 
-void  MannagedConnection::release_self()
+void  OuterPipe::release_self()
 {
     if (is_managed())
     {
@@ -154,7 +162,7 @@ CString OuterPipeMan::dump_2_str()
     iterator it;
     for (it = begin(); it != end() ; it++)
     { 
-        MannagedConnection* the_pipe = it->second; 
+        OuterPipe* the_pipe = it->second; 
         s.format_append("%s\n" , the_pipe->dump_2_str().c_str());
     }
 
@@ -187,7 +195,7 @@ void OuterPipeMan::timer_cb()
 
         for (it = begin(); it != end() ; it++)
         { 
-            MannagedConnection * the_client = it->second; 
+            OuterPipe * the_client = it->second; 
             if (! the_client->is_alive())
             {
                 LOG_WARN("'%s' is no longer alive, drop it.\n" , the_client->dump_2_str().c_str());
@@ -217,7 +225,7 @@ unsigned long OuterPipeMan::allocate_new_id()
 }
 
 // 从此OuterPipeMan来管理 pipe
-int  OuterPipeMan::register_connection(MannagedConnection* pipe  )
+int  OuterPipeMan::register_connection(OuterPipe* pipe  )
 {
     //AutoLocker _yes_locked( lock );
     unsigned long new_id = allocate_new_id();
@@ -236,7 +244,7 @@ int  OuterPipeMan::register_connection(MannagedConnection* pipe  )
 void OuterPipeMan::unregister_connection(int client_id)
 {
     //AutoLocker _yes_locked( lock );
-    MannagedConnection  * p = get_item(client_id);
+    OuterPipe* p = get_item(client_id);
     if (!p)
     {
         return;

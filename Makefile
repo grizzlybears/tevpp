@@ -1,7 +1,7 @@
 #
 # simple Makefile template :)
 #
-Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target)
+Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target)
 
 hello_target=hello 
 hello_src=hello.cpp
@@ -22,10 +22,15 @@ wt_target=wt_demo
 wt_src=wt_demo.cpp
 wt_objs:=$(patsubst %.cpp,%.o,$(wt_src)) 
 
+# demo of 'managed outer pipes'
+echo_target=echo2all
+echo_src=echo_to_all.cpp
+echo_objs:=$(patsubst %.cpp,%.o,$(echo_src)) 
+
 
 CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
 
-Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs)
+Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs)
 
 #      以下摘自 `info make`
 #
@@ -76,6 +81,9 @@ $(cat_target): $(cat_objs) $(CommMan_objs)
 $(wt_target): $(wt_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+$(echo_target): $(echo_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
+
 
 clean:
 	rm -fr $(Objs) $(Target) $(Deps)
@@ -91,4 +99,8 @@ test_cat:$(cat_target)
 
 test_wt:$(wt_target) 
 	./$(wt_target) 
+
+test_echo:$(echo_target)
+	./$(echo_target)
+
 

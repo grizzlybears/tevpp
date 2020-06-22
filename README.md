@@ -20,6 +20,10 @@ Build and run
     $make test_hello  #run the 'libevent hello-world sample' C++ ported.
     
     $make test_cat    #run the 'cat' sample, which implement 'cat' in libevent style.
+    
+    $make test_wt     #run the 'wt_demo' sample, which does some stuff in worker thread.
+    
+    $make test_echo   #run the 'echo to all' sample  -- a chat server echoes any income msg to all cliets.
 
 
 

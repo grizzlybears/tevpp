@@ -32,6 +32,13 @@ public:
     {
         return my_app->get_event_base();
     }
+    
+    SimpleEventLoop  * get_app()
+    {
+        return my_app;
+    }
+
+
 
     /**
       A callback that we invoke when a listener has a new connection.
