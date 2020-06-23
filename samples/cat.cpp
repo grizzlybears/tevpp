@@ -44,21 +44,6 @@ public:
     };
 };
 
-class QuitSignalHandler
-    : public BaseSignalHandler
-{
-public: 
-    QuitSignalHandler(SimpleEventLoop  * loop) 
-        : BaseSignalHandler(loop )
-    {
-    }
-
-    virtual void signal_cb()
-    {	
-        event_base_loopexit( get_event_base(), NULL); 
-    }
-};
-
 int main(int argc, char **argv)
 {
     try
@@ -72,7 +57,6 @@ int main(int argc, char **argv)
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
-        control_c_handler.start_handle_signal( SIGINT );
 
         // the main loop
         loop.run();

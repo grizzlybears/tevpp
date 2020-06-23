@@ -68,9 +68,9 @@ void BaseConnection::take_bev(struct bufferevent * the_bev
 }
 
 
-void BaseConnection::connect_tcp(const char *hostname, int port)
+void BaseConnection::connect_tcp(const char *hostname, int port, int   options)
 {
-    bev = bufferevent_socket_new( get_event_base(), -1, BEV_OPT_CLOSE_ON_FREE);
+    bev = bufferevent_socket_new( get_event_base(), -1, options);
     if (!bev) {
         throw SimpleException("Error constructing bufferevent");
     }
@@ -141,6 +141,24 @@ void AddrInfo::get_peer_info(int s)
     }
 
 }
+
+CString AddrInfo::to_str() const
+{
+    if (!peer_ipstr[0])
+    {
+        return "N/A";
+    }
+
+    if (! peer_port)
+    {
+        return peer_ipstr;
+    }
+
+    CString s("%s:%d", peer_ipstr, peer_port);
+
+    return s;
+}
+
 
 void  OuterPipe::release_self()
 {

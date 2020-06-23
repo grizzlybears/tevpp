@@ -26,10 +26,10 @@ class HelloServerConnection
     :public BaseConnection
 {
 public:
-    HelloServerConnection(SimpleEventLoop* loop, evutil_socket_t fd, int options =  BEV_OPT_CLOSE_ON_FREE )
+    HelloServerConnection(SimpleEventLoop* loop, evutil_socket_t fd )
          : BaseConnection(loop)
     {
-        take_socket(fd, EV_WRITE , options);
+        take_socket(fd, EV_WRITE );
     }
 
     virtual void on_writable()
@@ -59,24 +59,6 @@ public:
 
 };
 
-class QuitSignalHandler
-    : public BaseSignalHandler
-{
-public: 
-    QuitSignalHandler(SimpleEventLoop  * loop) 
-        : BaseSignalHandler(loop )
-    {
-    }
-
-    virtual void signal_cb()
-    {	
-        struct timeval delay = { 1, 0 };
-
-        LOG_DEBUG("Caught an interrupt signal; exiting cleanly in 1 second.\n");
-        event_base_loopexit( get_event_base(), &delay);
-    }
-};
-
 int main(int argc, char **argv)
 {
 #ifdef WIN32
@@ -93,7 +75,6 @@ int main(int argc, char **argv)
  
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
-        control_c_handler.start_handle_signal( SIGINT );
 
         //3. also listen on a unix domain socket
         HelloWorldListener un_listener( &loop);

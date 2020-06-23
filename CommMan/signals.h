@@ -43,5 +43,24 @@ protected:
 
 };
 
+class QuitSignalHandler
+    : public BaseSignalHandler
+{
+public: 
+    QuitSignalHandler(SimpleEventLoop  * loop,int sig = SIGINT ) 
+        : BaseSignalHandler(loop )
+    {
+        start_handle_signal(sig );
+    }
+
+    virtual void signal_cb()
+    {	
+        struct timeval delay = { 1, 0 };
+
+        LOG_DEBUG("Caught an interrupt signal; exiting cleanly in 1 second.\n");
+        event_base_loopexit( get_event_base(), &delay);
+    }
+};
+
 
 #endif

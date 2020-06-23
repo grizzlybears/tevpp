@@ -4,6 +4,7 @@
 #include <event2/event.h>
 #include <event2/util.h>
 #include <event2/dns.h>
+#include <event2/thread.h>
 
 #include "utils.h"
 class SimpleEventLoop
@@ -11,6 +12,8 @@ class SimpleEventLoop
 public:
     SimpleEventLoop():dns_base(NULL)
     {
+        evthread_use_pthreads();
+        
         base = event_base_new();
         if (!base) {
             throw SimpleException("Could not initialize event_base.\n");

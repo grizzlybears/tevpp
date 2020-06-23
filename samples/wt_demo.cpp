@@ -22,23 +22,6 @@ public:
 };
 
     
-
-class QuitSignalHandler
-    : public BaseSignalHandler
-{
-public: 
-    QuitSignalHandler(SimpleEventLoop  * loop) 
-        : BaseSignalHandler(loop )
-    {
-    }
-
-    virtual void signal_cb()
-    {	
-        event_base_loopexit( get_event_base(), NULL); 
-        LOG_DEBUG("Caught an interrupt signal, just quit.\n");
-    }
-};
-
 class DemoJob: public JobMessage
 {
 public: 
@@ -103,22 +86,15 @@ public:
 
 int main(int argc, char **argv)
 {
-    evthread_use_pthreads();
     try
 	{ 
         DemoApp loop;
         debug_printf("demo worker thread\n");
-        int i = evthread_use_pthreads ( );
-        if (i)
-        {
-            LOG_WARN("evthread_use_pthreads  failed!\n");
-            return 1;
-        }
         
         // create worker thead, who communicates with main thread via msg_switch
         MsgSwitch msg_switch(&loop);
         loop.msg_switch = &msg_switch;
-        i = msg_switch.create_inner_pipe();
+        int i = msg_switch.create_inner_pipe();
         if (i)
         {
             return 1;
@@ -132,7 +108,6 @@ int main(int argc, char **argv)
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
-        control_c_handler.start_handle_signal( SIGINT );
 
         //3. create a timer 
         DemoTimer timer(&loop);

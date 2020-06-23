@@ -3,28 +3,30 @@
 #
 Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target)
 
+sample_dir=samples
+
 hello_target=hello 
-hello_src=hello.cpp
+hello_src=$(sample_dir)/hello.cpp
 hello_objs:=$(patsubst %.cpp,%.o,$(hello_src)) 
 
 # the 'client' part of hello
 hehe_target=hehe
-hehe_src=hehe.cpp
+hehe_src=$(sample_dir)/hehe.cpp
 hehe_objs:=$(patsubst %.cpp,%.o,$(hehe_src)) 
 
 # 'cat' in libevent style
 cat_target=evcat
-cat_src=cat.cpp
+cat_src=$(sample_dir)/cat.cpp
 cat_objs:=$(patsubst %.cpp,%.o,$(cat_src)) 
 
 # demo of 'worker thread'
 wt_target=wt_demo
-wt_src=wt_demo.cpp
+wt_src=$(sample_dir)/wt_demo.cpp
 wt_objs:=$(patsubst %.cpp,%.o,$(wt_src)) 
 
 # demo of 'managed outer pipes'
 echo_target=echo2all
-echo_src=echo_to_all.cpp
+echo_src=$(sample_dir)/echo_to_all.cpp
 echo_objs:=$(patsubst %.cpp,%.o,$(echo_src)) 
 
 

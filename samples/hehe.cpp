@@ -19,7 +19,7 @@ class HelloClientConnection
     :public BaseConnection
 {
 public:
-    HelloClientConnection(SimpleEventLoop* loop, const char* host, int port, int options =  BEV_OPT_CLOSE_ON_FREE )
+    HelloClientConnection(SimpleEventLoop* loop, const char* host, int port )
          : BaseConnection(loop)
     {
         connect_tcp( host, port);
@@ -46,22 +46,6 @@ public:
     };
 };
 
-class QuitSignalHandler
-    : public BaseSignalHandler
-{
-public: 
-    QuitSignalHandler(SimpleEventLoop  * loop) 
-        : BaseSignalHandler(loop )
-    {
-    }
-
-    virtual void signal_cb()
-    {	
-        event_base_loopexit( get_event_base(), NULL); 
-        LOG_DEBUG("Caught an interrupt signal, just quit.\n");
-    }
-};
-
 int main(int argc, char **argv)
 {
     try
@@ -71,7 +55,6 @@ int main(int argc, char **argv)
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
-        control_c_handler.start_handle_signal( SIGINT );
 
         // the main loop
         loop.run();

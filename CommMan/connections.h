@@ -49,7 +49,7 @@ public:
 
 
     // connect 'this' to tcp addr:port
-    virtual void connect_tcp(const char *hostname, int port);
+    virtual void connect_tcp(const char *hostname, int port, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
 
     virtual void post_disconnected()
     {
@@ -123,7 +123,15 @@ public:
     char peer_ipstr[INET6_ADDRSTRLEN];
     int  peer_port;
 
+    AddrInfo()
+    {
+        peer_port     = 0;
+        peer_ipstr[0] = 0; 
+    }
+
     void get_peer_info(int s);
+
+    CString to_str() const;
 
 };
 

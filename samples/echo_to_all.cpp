@@ -56,19 +56,19 @@ public:
             
         if (is_managed())
         {
-            s.Format("pipe #%lu, fd #%d, peer %s:%d, conn at %s"
+            s.Format("pipe #%lu, fd #%d, %s, conn at %s"
                 , get_id()
                 , fd
-                ,  peer_info.peer_ipstr,  peer_info.peer_port
+                ,  peer_info.to_str().c_str() 
                 , conn_time.c_str()
                 );
         }
         else
         { 
             // 未纳入pipe_man
-            s.Format("fd #%d, peer %s:%d, conn at %s"
+            s.Format("fd #%d, %s, conn at %s"
                 , fd
-                ,  peer_info.peer_ipstr,  peer_info.peer_port
+                ,  peer_info.to_str().c_str() 
                 , conn_time.c_str()
                 );
 
@@ -147,24 +147,6 @@ public:
 
 };
 
-class QuitSignalHandler
-    : public BaseSignalHandler
-{
-public: 
-    QuitSignalHandler(SimpleEventLoop  * loop) 
-        : BaseSignalHandler(loop )
-    {
-    }
-
-    virtual void signal_cb()
-    {	
-        struct timeval delay = { 1, 0 };
-
-        LOG_DEBUG("Caught an interrupt signal; exiting cleanly in 1 second.\n");
-        event_base_loopexit( get_event_base(), &delay);
-    }
-};
-
 void print_hint()
 {
     printf("To make some clients:\n");
@@ -178,7 +160,6 @@ int main(int argc, char **argv)
 {
     try
 	{ 
-        evthread_use_pthreads();
 
         EchoToAllApp loop;
         
@@ -188,7 +169,6 @@ int main(int argc, char **argv)
  
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);
-        control_c_handler.start_handle_signal( SIGINT );
 
         //3. also listen on a unix domain socket
         HelloWorldListener un_listener( &loop);
