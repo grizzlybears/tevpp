@@ -49,6 +49,8 @@
 	    LOG_ERROR( "Failed  while %s, errno = %d, %s\n", where , code, msg ); \
    } while (0)
 
+#define xstr(s) str(s)
+#define str(s) #s
 
 class SimpleException: public std::exception 
 {

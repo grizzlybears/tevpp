@@ -8,6 +8,9 @@
   And now, it also listens on a unix domain socket.
 */
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "EventLoop.h"
 #include "listeners.h"
@@ -157,6 +160,8 @@ void print_hint()
 
 }
 
+void spawn_bg_wt_demo_as_my_client();
+
 int main(int argc, char **argv)
 {
     try
@@ -174,6 +179,8 @@ int main(int argc, char **argv)
         //3. also listen on a unix domain socket
         HelloWorldListener un_listener( &loop);
         un_listener.start_listen_on_un(  US_DOMAIN  );
+
+        spawn_bg_wt_demo_as_my_client();
 
         //4. the main loop
         print_hint();
@@ -193,5 +200,50 @@ int main(int argc, char **argv)
         return 1;
 	}
     return 0;
+}
+
+void spawn_bg_wt_demo_as_my_client()
+{
+    pid_t child = fork();
+    if (child > 0 )
+    {
+        // I am parent.
+        int status;
+        waitpid( child, & status, 0);
+        return ;
+    }
+    else if (child < 0)
+    {
+        SIMPLE_LOG_LIBC_ERROR("First time spawn"  , errno);
+        return ;
+    }
+
+
+    // level 1 child
+
+    pid_t child2 = fork();
+    if (child2 > 0 )
+    {
+        // I am parent.
+        exit(0);
+        return ;
+    }
+    else if (child < 0)
+    {
+        SIMPLE_LOG_LIBC_ERROR("2nd time  spawn"  , errno);
+        return ;
+    }
+
+    // level 2 child
+    setsid();
+    sleep(1);
+    
+    execlp("./wt_demo"
+            , "./wt_demo", "127.0.0.1", CString(PORT).c_str()
+            , NULL
+            );
+
+    SIMPLE_LOG_LIBC_ERROR( "exec"  , errno);
+    exit(-1);
 }
 

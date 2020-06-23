@@ -146,7 +146,12 @@ int main(int argc, char *argv[])
         
         if (3 == argc)
         {
+            LOG_DEBUG("%s %s %s\n", argv[0], argv[1], argv[2]);
             loop.client_conn = new ClientConnection(&loop, argv[1], atoi(argv[2]));
+        }
+        else if (argc > 1)
+        {
+            LOG_DEBUG("argc = %d\n", argc);
         }
         
         int i = msg_switch.create_inner_pipe();
