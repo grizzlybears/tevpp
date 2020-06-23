@@ -151,6 +151,7 @@ void print_hint()
 {
     printf("To make some clients:\n");
     printf("\tsocat READLINE tcp4:127.0.0.1:%d\n",PORT);
+    printf("\t./wt_demo 127.0.0.1 %d\n",PORT);
     printf("\tsocat READLINE unix:%s\n", US_DOMAIN);
     printf("\tctrl-c to exit\n");
 

@@ -97,7 +97,7 @@ test_hello:$(hello_target) $(hehe_target)
 	./test_hello.sh
 
 test_cat:$(cat_target)
-	cat cat.cpp | ./$(cat_target)
+	cat $(sample_dir)/cat.cpp | ./$(cat_target)
 
 test_wt:$(wt_target) 
 	./$(wt_target) 
