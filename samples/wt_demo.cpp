@@ -7,12 +7,17 @@
 #include <stdio.h>
 #include <signal.h>
 
+#include "json/json.h"  // this header must be 1st one, it is somehow sick.
+
 #include "EventLoop.h"
 #include "listeners.h"
 #include "signals.h"
 #include "connections.h"
 #include "timers.h"
 #include "inner_pipe.h"
+#include "jmsg_connection.h"
+
+int gDemoPlainProtocol = 1;
 
 class ClientConnection
     :public BaseConnection
@@ -41,13 +46,37 @@ public:
     }
 };
 
+class JMsgClientConnection
+    :public JMsgConnection
+{
+public:
+     JMsgClientConnection(SimpleEventLoop* loop, const char* host, int port )
+         :  JMsgConnection(loop)
+    {
+        connect_tcp( host, port);
+    }
+   
+    virtual void post_disconnected()
+    {
+        event_base_loopexit( get_event_base(), NULL); 
+        delete this;
+    }
+    
+    virtual OuterPipeMan * get_pipe_man()
+    {
+        assert(0);
+        return NULL;
+    }
+};
+
+
 
 class DemoApp
     : public SimpleEventLoop 
 {
 public:
     MsgSwitch * msg_switch;           // doesn't maintain life-cycle. 
-    ClientConnection * client_conn;   // doesn't maintain life-cycle. 
+    BaseConnection * client_conn;     // doesn't maintain life-cycle. 
     
     int     seq;
     
@@ -56,6 +85,11 @@ public:
         msg_switch  = NULL;
         client_conn = NULL;
         seq = 0;
+    }
+
+    int get_seq()
+    {
+        return seq++;
     }
 };
 
@@ -82,7 +116,21 @@ public:
 
         if (app->client_conn)
         {
-            app->client_conn->send_str(msg_2_server);
+            if ( gDemoPlainProtocol)
+            {
+                app->client_conn->send_str(msg_2_server);
+            }
+            else
+            {
+                 JMsgClientConnection* j = checked_cast( app->client_conn, (JMsgClientConnection*)NULL );
+                 
+                 Json::Value m1;
+
+                 m1["Command"] = "Hello";
+                 m1["msg"]  =    msg_2_server ;
+                
+                 j->send_msg( app->seq, m1);
+            }
         }
 
         // msg 自己负责释放
@@ -93,8 +141,7 @@ public:
     {
         debug_printf("let's do sth in worker\n"); 
         
-        msg_2_server.Format("#%d msg from worker thread\n", app->seq );
-        app->seq++;
+        msg_2_server.Format("#%d msg from worker thread\n", app->get_seq() );
         
         // 接力到主线程
         app->msg_switch->queue_to_main_thread( this);
@@ -149,6 +196,13 @@ int main(int argc, char *argv[])
             LOG_DEBUG("%s %s %s\n", argv[0], argv[1], argv[2]);
             loop.client_conn = new ClientConnection(&loop, argv[1], atoi(argv[2]));
         }
+        else if (4 == argc && !strcmp("-j", argv[1] ))
+        {
+            LOG_DEBUG("%s -j %s %s\n", argv[0], argv[2], argv[3]);
+            gDemoPlainProtocol  =  0;
+            loop.client_conn = new JMsgClientConnection(&loop, argv[2], atoi(argv[3]));
+        }
+
         else if (argc > 1)
         {
             LOG_DEBUG("argc = %d\n", argc);

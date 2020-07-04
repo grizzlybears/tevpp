@@ -1,5 +1,4 @@
 #include "jmsg_connection.h"
-#include "client_msg_def.h"
 
 bool  BaseJMessage::parse_from_plain_msg(PlainMessage * plain_msg, std::string& parse_error)
 {
@@ -250,8 +249,7 @@ void  JMsgConnection::on_readable()
     catch (ConnectionGoneException& cge)
     {
 		LOG_INFO("%s was interrupted.\n", dump_2_str().c_str());
-        //release_bev();
-        safe_release();
+        release_self();
         return;
     }
     catch (std::exception& ex)
@@ -277,7 +275,7 @@ void JMsgConnection::on_writable()
     struct evbuffer *output = bufferevent_get_output(bev);
     if (evbuffer_get_length(output) == 0)
     {
-        safe_release();
+        release_self();
     }
 }
 

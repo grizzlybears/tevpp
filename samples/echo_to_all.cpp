@@ -12,13 +12,19 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "json/json.h"  // this header must be 1st one, it is somehow sick.
 #include "EventLoop.h"
 #include "listeners.h"
 #include "signals.h"
 #include "connections.h"
+#include "jmsg_connection.h"
 
-static const int PORT = 9995;
+static const int PORT   = 9995;
+static const int PORT_J = 9996;
 static const char US_DOMAIN[] = ".haha";
+
+#define PIPE_TYPE_PLAIN  (0)
+#define PIPE_TYPE_JSON   (1)
 
 class EchoToAllApp
     : public SimpleEventLoop 
@@ -44,6 +50,7 @@ public:
         take_socket(fd);
         conn_at = time(NULL);
         peer_info.get_peer_info(fd);
+        pipe_type = PIPE_TYPE_PLAIN;
 
     } 
      
@@ -119,7 +126,98 @@ public:
         { 
             OuterPipe* the_pipe = it->second; 
 
+            if (the_pipe->pipe_type != pipe_type)
+            {
+                continue;
+            }
+
             the_pipe->send_str(s);
+        }
+    }
+
+};
+
+
+class EchoToAllServerJMsgConnection
+    :public  JMsgConnection
+{
+public:
+    typedef   JMsgConnection MyBase;
+    EchoToAllServerJMsgConnection(SimpleEventLoop* loop, evutil_socket_t fd )
+         :MyBase(loop,fd)
+    {
+        conn_at = time(NULL);
+        peer_info.get_peer_info(fd);
+        pipe_type = PIPE_TYPE_JSON;
+    } 
+     
+    time_t   conn_at;
+    AddrInfo peer_info;
+
+    virtual  CString dump_2_str() const
+    {
+        CString s;
+
+        int fd = bufferevent_getfd(bev);
+        CString conn_time(conn_at);
+            
+        if (is_managed())
+        {
+            s.Format("pipe(J) #%lu, fd #%d, %s, conn at %s"
+                , get_id()
+                , fd
+                ,  peer_info.to_str().c_str() 
+                , conn_time.c_str()
+                );
+        }
+        else
+        { 
+            // 未纳入pipe_man
+            s.Format("fd(J) #%d, %s, conn at %s"
+                , fd
+                ,  peer_info.to_str().c_str() 
+                , conn_time.c_str()
+                );
+
+        }
+
+        return s;
+    }
+
+
+    virtual OuterPipeMan * get_pipe_man()
+    {
+        EchoToAllApp *app = (EchoToAllApp*)  get_app();
+        return & app->pipe_man;
+    }
+
+
+    virtual int really_process_msg(BaseJMessage* msg)
+    {
+        Json::Value ack = msg->jdata;
+        ack["Source"] =  dump_2_str();
+
+        echo_2_all(msg->sequence , ack);
+     
+        return 0;
+    }
+
+
+    void echo_2_all(int32_t seq, const Json::Value& jdata )
+    { 
+        OuterPipeMan* man = get_pipe_man();
+
+        OuterPipeMan::iterator it;
+        for (it = man->begin(); it != man->end() ; it++)
+        { 
+            OuterPipe* the_pipe = it->second;  
+            if (the_pipe->pipe_type != pipe_type)
+            {
+                continue;
+            } 
+            
+            EchoToAllServerJMsgConnection * j= checked_cast(the_pipe,(EchoToAllServerJMsgConnection *) NULL );
+            j->send_msg( seq, jdata);
         }
     }
 
@@ -150,12 +248,38 @@ public:
 
 };
 
+class HelloJMsgListener
+    : public BaseListener 
+{
+public: 
+     HelloJMsgListener(SimpleEventLoop  * loop) 
+        :BaseListener(loop )
+    {
+    }
+
+    virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
+    {
+        EchoToAllServerJMsgConnection* conn = new EchoToAllServerJMsgConnection( my_app, fd ); 
+
+        EchoToAllApp *app = (EchoToAllApp*)  get_app();
+        int i =  app->pipe_man.register_connection( conn);
+
+        if (i)
+        {
+            LOG_ERROR("Failed in register new incoming conn.");
+            free(conn); 
+        }
+    }
+
+};
+
 void print_hint()
 {
     printf("To make some clients:\n");
     printf("\tsocat READLINE tcp4:127.0.0.1:%d\n",PORT);
     printf("\t./wt_demo 127.0.0.1 %d\n",PORT);
     printf("\tsocat READLINE unix:%s\n", US_DOMAIN);
+    printf("\t./wt_demo -j 127.0.0.1 %d\n",PORT_J);
     printf("\tctrl-c to exit\n");
 
 }
@@ -180,9 +304,15 @@ int main(int argc, char **argv)
         HelloWorldListener un_listener( &loop);
         un_listener.start_listen_on_un(  US_DOMAIN  );
 
+        //4. listen on PORT_J for jmsg clients
+        HelloJMsgListener tcp_listener2( &loop);
+        tcp_listener2.start_listen_on_tcp( CString("0.0.0.0:%d", PORT_J).c_str() );
+ 
+
+        //5. make a client of plain text protocal
         spawn_bg_wt_demo_as_my_client();
 
-        //4. the main loop
+        // the main loop
         print_hint();
         loop.run();
 

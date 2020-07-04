@@ -30,7 +30,7 @@ echo_src=$(sample_dir)/echo_to_all.cpp
 echo_objs:=$(patsubst %.cpp,%.o,$(echo_src)) 
 
 
-CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp))
+CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp)) $(patsubst %.cpp,%.o,$(wildcard CommMan/json/*.cpp))
 
 Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs)
 
