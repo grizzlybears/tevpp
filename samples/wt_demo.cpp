@@ -29,6 +29,13 @@ public:
         connect_tcp( host, port);
     }
 
+    ClientConnection(SimpleEventLoop* loop, const char* path )
+         : BaseConnection(loop)
+    {
+        connect_unix( path);
+    }
+
+
     virtual void on_readable()
     {
         char buf[1024];
@@ -196,6 +203,12 @@ int main(int argc, char *argv[])
             LOG_DEBUG("%s %s %s\n", argv[0], argv[1], argv[2]);
             loop.client_conn = new ClientConnection(&loop, argv[1], atoi(argv[2]));
         }
+        else if (2==argc)
+        {
+            LOG_DEBUG("%s %s\n", argv[0], argv[1]);
+            loop.client_conn = new ClientConnection(&loop, argv[1]);
+        }
+
         else if (4 == argc && !strcmp("-j", argv[1] ))
         {
             LOG_DEBUG("%s -j %s %s\n", argv[0], argv[2], argv[3]);

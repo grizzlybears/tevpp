@@ -2,7 +2,8 @@
 #include "connections.h"
 
 #include <arpa/inet.h>
-
+#include <sys/socket.h>
+#include <sys/un.h>
 
 void BaseConnection::release_bev()
 { 
@@ -79,6 +80,25 @@ void BaseConnection::connect_tcp(const char *hostname, int port, int   options)
     bufferevent_enable(bev, EV_READ|EV_WRITE);
     bufferevent_socket_connect_hostname( bev, my_app->get_dns_base(), AF_UNSPEC, hostname, port);
 }
+ 
+// connect 'this' to unix domain socket at 'path' 
+void BaseConnection::connect_unix(const char *path, int   options )
+{ 
+    struct sockaddr_un server;
+    server.sun_family = AF_UNIX;
+    safe_strcpy(server.sun_path, path);
+
+    bev = bufferevent_socket_new( get_event_base(), -1, options);
+    if (!bev) {
+        throw SimpleException("Error constructing bufferevent");
+    }
+
+    bufferevent_setcb(bev, trampoline_readable, trampoline_writable , trampoline_event , (void*) this);
+    bufferevent_enable(bev, EV_READ|EV_WRITE);
+
+    bufferevent_socket_connect(bev, (struct sockaddr *) &server , sizeof server);
+}
+
 
 void BaseConnection::on_conn_event(short events)
 { 

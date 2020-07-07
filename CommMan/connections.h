@@ -51,6 +51,9 @@ public:
     // connect 'this' to tcp addr:port
     virtual void connect_tcp(const char *hostname, int port, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
 
+    // connect 'this' to unix domain socket at 'path' 
+    virtual void connect_unix(const char *path, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+
     virtual void post_disconnected()
     {
         delete this;
