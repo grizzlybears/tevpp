@@ -1,7 +1,7 @@
 #
 # simple Makefile template :)
 #
-Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target)
+Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target) $(udp_target)
 
 sample_dir=samples
 
@@ -29,10 +29,16 @@ echo_target=echo2all
 echo_src=$(sample_dir)/echo_to_all.cpp
 echo_objs:=$(patsubst %.cpp,%.o,$(echo_src)) 
 
+# demo of UDP binder
+udp_target=udp_echo
+udp_src=$(sample_dir)/udp_echo.cpp
+udp_objs:=$(patsubst %.cpp,%.o,$(udp_src)) 
+
+
 
 CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp)) $(patsubst %.cpp,%.o,$(wildcard CommMan/json/*.cpp))
 
-Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs)
+Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs) $(udp_objs)
 
 #      以下摘自 `info make`
 #
@@ -86,6 +92,8 @@ $(wt_target): $(wt_objs) $(CommMan_objs)
 $(echo_target): $(echo_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+$(udp_target): $(udp_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
 clean:
 	rm -fr $(Objs) $(Target) $(Deps)
@@ -104,5 +112,8 @@ test_wt:$(wt_target)
 
 test_echo:$(echo_target)
 	./$(echo_target)
+
+test_udp:$(udp_target)
+	./$(udp_target)
 
 

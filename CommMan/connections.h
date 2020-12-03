@@ -49,8 +49,9 @@ public:
 
 
     // connect 'this' to tcp addr:port
-    virtual void connect_tcp(const char *hostname, int port, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    virtual void connect_tcp(const char *hostname, int port, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE); 
 
+    
     // connect 'this' to unix domain socket at 'path' 
     virtual void connect_unix(const char *path, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
 
@@ -86,11 +87,54 @@ public:
     struct bufferevent * get_bev()
     {
         return bev;
-    }
+    } 
 
 protected:
     SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.
     struct bufferevent    *bev;
+};
+
+class BaseDiagram
+{
+public:
+     BaseDiagram(SimpleEventLoop  * loop)
+        :my_app(loop), the_event(NULL),sock_fd(-1)
+    {
+    }
+ 
+    struct event_base * get_event_base()
+    {
+        return my_app->get_event_base();
+    }
+
+    SimpleEventLoop  * get_app()
+    {
+        return my_app;
+    }
+
+
+    virtual ~BaseDiagram()
+    {
+        //debug_printf("yes, dtor \n");
+        release_ev();
+    }
+
+    // bind 'this' to udp addr:port
+    virtual void bind_udp(const char *addr, int port);
+
+    void release_ev();
+ 
+    static void trampoline_event_cb(evutil_socket_t fd, short events, void * arg);
+ 
+    virtual void on_readable() 
+    {
+    }
+
+protected:
+    SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.
+    struct event * the_event;
+    int  sock_fd;
+
 };
 
 class EvBufAutoLocker

@@ -80,7 +80,70 @@ void BaseConnection::connect_tcp(const char *hostname, int port, int   options)
     bufferevent_enable(bev, EV_READ|EV_WRITE);
     bufferevent_socket_connect_hostname( bev, my_app->get_dns_base(), AF_UNSPEC, hostname, port);
 }
+  
+// bind 'this' to udp addr:port
+void BaseDiagram::bind_udp(const char *addr, int port)
+{ 
+    int                 flag = 1;
+    struct sockaddr_in  sin;
  
+    /* Create endpoint */
+    if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        throw SimpleException("Error constructing socket(AF_INET, SOCK_DGRAM),  errno: %d", errno);
+    }
+ 
+    /* Set socket option */
+    if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int)) < 0) {
+        close(sock_fd);
+        sock_fd =-1;
+        throw SimpleException("Error while setting udp socket to 'SO_REUSEADDR', errno: %d", errno);
+    }
+ 
+    /* Set IP, port */
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = inet_addr(addr);
+    sin.sin_port = htons(port);
+ 
+    /* Bind */
+    if (bind(sock_fd, (struct sockaddr *)&sin, sizeof(struct sockaddr)) < 0) {
+        close(sock_fd);
+        sock_fd =-1;
+        throw SimpleException("Error while binding udp on %s:%d, errno: %d", addr, port, errno);
+    }
+
+    the_event = event_new( get_event_base()	,sock_fd, EV_READ | EV_PERSIST, trampoline_event_cb	,this );
+    int i = event_add(the_event, NULL);
+    if (i)
+    {
+        release_ev();
+        throw SimpleException("Failed to event_add udp socket.");
+    }
+
+}
+
+void BaseDiagram::trampoline_event_cb(evutil_socket_t fd, short events, void * arg)
+{ 
+    BaseDiagram * who =  (BaseDiagram*)arg;
+    who->on_readable();
+}
+
+void  BaseDiagram::release_ev()
+{
+    if (the_event)
+    {
+        event_del(the_event);
+        event_free(the_event);
+        the_event = NULL;
+    }
+
+    if (sock_fd >=0 )
+    {
+        close(sock_fd);
+        sock_fd = -1;
+    }
+}
+
 // connect 'this' to unix domain socket at 'path' 
 void BaseConnection::connect_unix(const char *path, int   options )
 { 
