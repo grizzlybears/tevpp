@@ -252,8 +252,11 @@ void PooledWorkerThread::register_to_pool()
 
 void PooledWorkerThread::unregister_from_poll()
 {
-    my_pool->remove_item(this->_thread_handle);
-    my_pool->lock.wake();
+    WorkerThreadPool * the_pool  = my_pool;
+    the_pool->remove_item(this->_thread_handle);
+
+    // 'this' is already deleted [捂脸]
+    the_pool->lock.wake();
 }
 
 void  WorkerThreadPool::create_new_worker(int howmany)
@@ -293,10 +296,10 @@ int PooledMsgSwitch::create_inner_pipe()
     int i;
     struct bufferevent *pair[2];
 
-    i =  bufferevent_pair_new( get_event_base() , BEV_OPT_THREADSAFE , pair);
+    i =  bufferevent_pair_new( this->get_event_base() , BEV_OPT_THREADSAFE , pair);
     if (i)
     {
-        LOG_ERROR("Failed ti create pipe pair.\n");
+        LOG_ERROR("Failed in create pipe pair.\n");
         return 1;
     }  
     

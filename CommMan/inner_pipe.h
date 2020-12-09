@@ -202,11 +202,18 @@ class PooledMsgSwitch
 {
 public: 
     PooledMsgSwitch(SimpleEventLoop  * loop)
-        : read_head(loop), write_head(loop), main_loop(loop), workers(loop)
+        :main_loop(loop),read_head(loop), write_head(loop), workers(loop)
     {
     }
 
-    int  create_inner_pipe();
+    virtual ~PooledMsgSwitch()
+    {
+    }
+
+    int  create_inner_pipe(); // FIXME: if thers was no virtual func, dtor of 'read_head'/'write_head' won't get called.
+                              //        if 'main_loop' was not 1st member var, 'create_inner_pipe()' in wt_demo2.cpp would crash
+                              //        Why? @_@
+                              //
     void queue_to_main_thread( JobMessage* msg )
     {
         write_head.post_msg(msg);
@@ -218,9 +225,9 @@ public:
     }
 
 protected:
+    SimpleEventLoop  * main_loop;
     InnerPipe  read_head;
     InnerPipe  write_head;
-    SimpleEventLoop  * main_loop;
 
     struct event_base * get_event_base()
     {
