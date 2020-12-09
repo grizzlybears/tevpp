@@ -275,8 +275,8 @@ void WorkerThreadPool::dismiss_1_worker()
 
 void WorkerThreadPool::dismiss_all_workers()
 {
-    size_t i;
-    for (i=0; i< this->size(); i++)
+    size_t i , n = this->size();
+    for (i=0; i< n; i++)
     {
         dismiss_1_worker();
     }
