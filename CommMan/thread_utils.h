@@ -24,6 +24,10 @@ public:
         _thread_handle = 0;
     }
 
+    virtual ~BaseThread()
+    {
+    }
+
     static  void* trampoline( void *arg);
     virtual void* thread_main();
 	
@@ -455,7 +459,7 @@ class SharedPtrMan
 {
 public:
     typedef std::map<K, V*> MyBase;
-    SimpleMutex  lock;
+    SimpleConditionVar  lock;
 
     virtual ~SharedPtrMan()
     { 

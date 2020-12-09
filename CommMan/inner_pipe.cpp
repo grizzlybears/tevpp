@@ -204,3 +204,106 @@ void MsgSwitch::stop_worker()
     worker.wait_thread_quit();
 }
 
+
+void* PooledWorkerThread::thread_main( )
+{
+    pthread_detach(this->_thread_handle);
+    
+    register_to_pool();
+
+    try
+    {
+        JobMessage* msg;
+        while (1)
+        {
+           try
+            {
+                my_pool->job_q.shared_fetch_head( msg);
+                msg->do_in_worker_thread();
+            }
+            catch (std::exception& ex)
+            {
+                LOG_ERROR("Exception in worker while processing msg '%s' : %s\n", msg->dump_2_str().c_str(), ex.what());
+            }
+
+        }
+
+    }
+    catch(QuitWorker& qw )
+    {
+        debug_printf("Worker normally ended.\n");
+    }
+    catch (std::exception& ex)
+	{
+		LOG_ERROR("Exception in worker: %s\n", ex.what());
+	}
+	catch (...)
+	{
+		LOG_ERROR("Unknown exception in worker\n");
+	}
+    unregister_from_poll();
+    return NULL;
+}
+
+void PooledWorkerThread::register_to_pool()
+{
+    my_pool->add_new_item(this->_thread_handle, this );
+}
+
+void PooledWorkerThread::unregister_from_poll()
+{
+    my_pool->remove_item(this->_thread_handle);
+    my_pool->lock.wake();
+}
+
+void  WorkerThreadPool::create_new_worker(int howmany)
+{
+    for (int i = 0; i< howmany; i++)
+    {
+        PooledWorkerThread* new_one = new  PooledWorkerThread(this);
+        new_one->create_thread();
+    }
+}
+
+void WorkerThreadPool::dismiss_1_worker()
+{
+    job_q.shared_append_one(new  QuitWorkerMsg());
+}
+
+void WorkerThreadPool::dismiss_all_workers()
+{
+    size_t i;
+    for (i=0; i< this->size(); i++)
+    {
+        dismiss_1_worker();
+    }
+}
+
+void WorkerThreadPool::wait_until_all_workers_gone()
+{
+    AutoLocker _yes_locked( this->lock);
+    while( ! this->empty())
+    {
+        this->lock.wait();
+    }
+}
+
+int PooledMsgSwitch::create_inner_pipe()
+{
+    int i;
+    struct bufferevent *pair[2];
+
+    i =  bufferevent_pair_new( get_event_base() , BEV_OPT_THREADSAFE , pair);
+    if (i)
+    {
+        LOG_ERROR("Failed ti create pipe pair.\n");
+        return 1;
+    }  
+    
+    read_head.take_bev( pair[0] );
+    write_head.take_bev( pair[1] );
+
+    return 0;
+}
+
+

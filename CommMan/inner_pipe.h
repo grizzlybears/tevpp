@@ -148,6 +148,87 @@ public:
 
 };
 
+//////////////// thread pool , and MsgSwitch with thread poll /////
+class WorkerThreadPool;
 
+class PooledWorkerThread
+    :public BaseThread
+{
+public:
+      PooledWorkerThread( WorkerThreadPool * pool)
+        :my_pool (pool)
+     {
+     }
+     
+    virtual void* thread_main(); 
+
+protected:
+    WorkerThreadPool * my_pool; 
+
+    void register_to_pool();
+    void unregister_from_poll();
+};
+
+class WorkerThreadPool
+    :public SharedPtrMan< pthread_t ,PooledWorkerThread> 
+{
+public:
+     WorkerThreadPool(SimpleEventLoop  * loop)
+        :  main_loop(loop)
+     {
+     }
+     
+    JobQueue job_q; // all worker threads are equal :)
+   
+    void create_new_worker(int howmany);
+    void dismiss_1_worker();
+    void dismiss_all_workers();
+    void wait_until_all_workers_gone();
+
+protected:
+    SimpleEventLoop  * main_loop;
+};
+
+/*
+ * PooledMsgSwith comes with a worker thread pool, a pair of 'inner pipe', and a 'job message q' .
+ 
+ * Main thread append 'job message' to the Q, then worker thread gets it and exec the job on worker thread.
+ 
+ * Worker thread post special message to 'wr head' of the innerpipe, 
+ * then main thread fetches it via 'rd head' of inner pipe and does further processing.
+ *
+*/
+class PooledMsgSwitch
+{
+public: 
+    PooledMsgSwitch(SimpleEventLoop  * loop)
+        : read_head(loop), write_head(loop), main_loop(loop), workers(loop)
+    {
+    }
+
+    int  create_inner_pipe();
+    void queue_to_main_thread( JobMessage* msg )
+    {
+        write_head.post_msg(msg);
+    }
+ 
+    void queue_to_worker_thread( JobMessage* msg )
+    {
+        workers.job_q.shared_append_one( msg);
+    }
+
+protected:
+    InnerPipe  read_head;
+    InnerPipe  write_head;
+    SimpleEventLoop  * main_loop;
+
+    struct event_base * get_event_base()
+    {
+        return main_loop->get_event_base();
+    }
+
+public:
+    WorkerThreadPool  workers;
+};
 #endif
 

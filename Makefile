@@ -1,7 +1,7 @@
 #
 # simple Makefile template :)
 #
-Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target) $(udp_target)
+Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target) $(udp_target) $(wt2_target)
 
 sample_dir=samples
 
@@ -33,6 +33,11 @@ echo_objs:=$(patsubst %.cpp,%.o,$(echo_src))
 udp_target=udp_echo
 udp_src=$(sample_dir)/udp_echo.cpp
 udp_objs:=$(patsubst %.cpp,%.o,$(udp_src)) 
+
+# demo of 'worker thread pool'
+wt2_target=wt_demo2
+wt2_src=$(sample_dir)/wt_demo2.cpp
+wt2_objs:=$(patsubst %.cpp,%.o,$(wt2_src)) 
 
 
 
@@ -89,6 +94,9 @@ $(cat_target): $(cat_objs) $(CommMan_objs)
 $(wt_target): $(wt_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+$(wt2_target): $(wt2_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
+
 $(echo_target): $(echo_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
@@ -115,5 +123,8 @@ test_echo:$(echo_target)
 
 test_udp:$(udp_target)
 	./$(udp_target)
+
+test_wt2:$(wt2_target) 
+	./$(wt2_target) 
 
 
