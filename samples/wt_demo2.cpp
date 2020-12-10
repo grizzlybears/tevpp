@@ -182,7 +182,7 @@ public:
         debug_printf("timer in main thread\n");
         DemoApp * app = (DemoApp*)get_app();
 
-        for (int i = 0; i < gPoolSize *2 ; i++)
+        for (int i = 0; i < gPoolSize ; i++)
         {
             DemoJob*  job = new DemoJob(app);
             app->msg_switch->queue_to_worker_thread(job );

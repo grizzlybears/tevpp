@@ -43,7 +43,7 @@ wt2_objs:=$(patsubst %.cpp,%.o,$(wt2_src))
 
 CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp)) $(patsubst %.cpp,%.o,$(wildcard CommMan/json/*.cpp))
 
-Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs) $(udp_objs)
+Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs) $(udp_objs) $(wt2_objs)
 
 #      以下摘自 `info make`
 #
