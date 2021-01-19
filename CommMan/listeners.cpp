@@ -1,5 +1,11 @@
+#ifdef __GNUC__
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
+#else
+#include <winsock2.h>
+#endif
+
 
 #include "listeners.h"
 
@@ -60,12 +66,33 @@ void BaseListener::start_listen_on_tcp(const char * addr , unsigned flags  )
     }
 }
 
+#ifdef __GNUC__
+class AutoRestoreUmask
+{
+public:
+    AutoRestoreUmask(mode_t old)
+    {
+        _old = old;
+    }
+
+    ~AutoRestoreUmask()
+    {
+        umask(_old);
+    }
+
+    mode_t _old;
+
+};
+
 void BaseListener::start_listen_on_un(const char * path , unsigned flags  )
 {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, path , sizeof(addr.sun_path)-1);
+
+    mode_t mask = umask(0); 
+    AutoRestoreUmask __dont_forget(mask);
 
 	evutil_socket_t fd;
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -75,6 +102,12 @@ void BaseListener::start_listen_on_un(const char * path , unsigned flags  )
 		char* msg = strerror(code ); 
         throw SimpleException("Failed to create unix domain socket, errno = %d, %s\n", code, msg);
     }
+
+
+    //if (fchmod(fd, 0777))
+    //{
+    //    SIMPLE_LOG_LIBC_ERROR( "chmod" , errno );
+    //}
 
     if (evutil_make_socket_nonblocking(fd) < 0) {
 		evutil_closesocket(fd);
@@ -108,4 +141,4 @@ void BaseListener::start_listen_on_un(const char * path , unsigned flags  )
     start_listen_on_fd( fd, flags );
 }
 
-
+#endif

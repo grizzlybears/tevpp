@@ -1,19 +1,30 @@
 ﻿#ifndef THREAD_UTILS_H_
 #define THREAD_UTILS_H_
 
-#include "utils.h"
+#include <stdio.h>
+#include <assert.h>
+#include <memory>
+#include <vector>
+#include <list>
+#include <map>
 
 #ifdef _WIN32 
-    #include <winnt.h>
-    #include <windows.h>
+	#include <windows.h>
+    #include <winnt.h>    
     #include <process.h>
+	#define STDCALL __stdcall
+	typedef unsigned ThreadRetType;
 #else
     #include <stdint.h>
     #include <pthread.h>
-    #define DWORD uint32_t
+//    #define DWORD uint32_t
     #define __stdcall  
     #define INFINITE (0xFFFFFFFF)
+	#include "utils.h"
+	#define STDCALL __stdcall
+	typedef void* ThreadRetType;
 #endif
+
 
 #define NOTHING_TO_WAIT (1)
 class BaseThread
@@ -28,13 +39,18 @@ public:
     {
     }
 
-    static  void* trampoline( void *arg);
-    virtual void* thread_main();
+    static  ThreadRetType STDCALL trampoline( void *arg);
+    virtual ThreadRetType thread_main();
 	
 	void create_thread();
 	int  wait_thread_quit();
-
+#ifdef __GNUC__
     pthread_t _thread_handle;
+#else
+	HANDLE _thread_handle;
+	unsigned _thread_id;
+#endif
+
 };
 
 typedef enum {
@@ -143,6 +159,19 @@ public:
 		SleepConditionVariableCS (&_cond, &_cs, INFINITE);
 	}
 
+	// return 0        -- wait success
+	// return nonzero  -- wait timeout
+	int timed_wait(unsigned int seconds)
+	{
+		BOOL b = SleepConditionVariableCS(&_cond, &_cs, seconds* 1000);
+		if (b)
+		{
+			return 0;
+		}
+		assert( ERROR_TIMEOUT == GetLastError());
+		return 1;
+	}
+
 	void wake( int how = WAKE_ONE)
 	{
 		if (WAKE_ONE == how)
@@ -154,6 +183,8 @@ public:
 			WakeAllConditionVariable(&_cond);
 		}
 	}
+
+
 	
 };
 
@@ -317,6 +348,27 @@ public:
         }
 	}
 
+    // return 0        -- wait success
+    // return nonzero  -- wait timeout
+    int timed_wait(unsigned int seconds)
+	{
+        struct timespec time_to_wait = {0, 0};
+        time_to_wait.tv_sec = time(NULL) + seconds; 
+
+        int i = pthread_cond_timedwait(&_cond, &m_pthr_mutex, &time_to_wait ); 
+        if (ETIMEDOUT ==i)
+        {
+            return 1;
+        }
+        else if (i)
+        {
+            SIMPLE_LOG_LIBC_ERROR( "wait_cond", i );
+            return 1;
+        }
+
+        return 0;
+	}
+
 	void wake( int how = WAKE_ONE)
 	{
         int i;
@@ -418,14 +470,15 @@ public:
 	{
 		AutoLocker _yes_locked(_condition_var);
 		on_off = true;
-		_condition_var.wake(WAKE_ONE);
+		_condition_var.wake(WAKE_ALL);
 	}
+   
 
 	void turn_off()
 	{
 		AutoLocker _yes_locked(_condition_var);
 		on_off = false;
-
+		_condition_var.wake(WAKE_ONE);
 	}
 	
 	void wait_until_on()
@@ -436,6 +489,25 @@ public:
 		{
 			_condition_var.wait();
 		}
+	}
+    
+
+    // return 0        -- wait success
+    // return nonzero  -- wait timeout
+    int timed_wait_until_on(unsigned int seconds)
+	{
+		AutoLocker _yes_locked(_condition_var);
+
+		while( !on_off)
+		{
+            int i = _condition_var.timed_wait(seconds);
+            if (i)
+            {
+                return i;
+            }
+		}
+
+        return 0;
 	}
 
 	void wait_then_turn_off()

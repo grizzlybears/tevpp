@@ -17,6 +17,13 @@
 #define LIKE_PRINTF23 __attribute__((format(printf,2,3)))	    
 #endif
 
+#ifdef __GNUC__
+#define LOCK_LOG_FILE 
+#else
+#include "thread_utils.h"
+extern SharedFile  g_main_logger;
+#define LOCK_LOG_FILE  AutoLocker _lock_it(g_main_logger); 
+#endif
 
 #define LOG( format, ...) do { \
         time_t tnow ; \
@@ -25,7 +32,7 @@
         localtime_r(&tnow, &__now ); \
         CAtlStringA the_message; \
 		the_message.Format(format, ## __VA_ARGS__); \
-        fprintf(stderr,"[%d-%d-%d %02d:%02d:%02d] %s" \
+        LOCK_LOG_FILE; fprintf(stderr,"[%d-%d-%d %02d:%02d:%02d] %s" \
                 , __now.tm_year+1900 \
                 , __now.tm_mon +1    \
                 , __now.tm_mday      \
@@ -35,6 +42,11 @@
                 , the_message.GetString() \
                );   \
 	    } while(0)
+
+#define RAW_LOG( format, ...)  do { \
+            LOCK_LOG_FILE; fprintf(stderr, format, ##__VA_ARGS__ ); \
+	    } while(0)
+
 
 #define LOG_DEBUG(format, ...) LOG( "Debug|%s:(%d)|" format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
 #define LOG_INFO(format, ...)  LOG( "Info |%s:(%d)|" format, __FUNCTION__ , __LINE__, ## __VA_ARGS__)
@@ -112,6 +124,20 @@ public:
 		return ( MyBase::end() != the_it);
 	}
 
+    bool safe_remove(const K& which)
+    {
+        typename MyBase::iterator it =  MyBase::find(which);
+        if ( MyBase::end() == it)
+        {
+            return false;
+        }
+        
+        MyBase::erase(it);
+
+        return true;
+    }
+
+
     V* just_get_ptr(const K& which)
     {
         typename MyBase::iterator it= MyBase::find(which);
@@ -186,6 +212,8 @@ public:
 };
 #define safe_strcpy(d , s) strncpy( (d) , (s) , sizeof(d) - 1 )
 
+#define ARRAY_SIZE(a)   ( sizeof(a) / (  sizeof (a)[0] ) )
+
 template <typename T>
 class AutoReleasePtr
 {
@@ -244,6 +272,7 @@ public:
 	
 };
 
+#ifdef __GNUC__
 class AutoCloseFD
 {
 public:   
@@ -264,6 +293,7 @@ public:
 		close(me);
 	}
 };
+#endif //#ifdef __GNUC__
 
 class AutoFree
 {
@@ -339,6 +369,7 @@ const T* is_null( const T* x , const T* y )
 //  http://bluesock.org/~willg/dev/ansi.html
 
 #ifndef NDEBUG
+#ifdef __GNUC__
 	#define debug_printf(format, ... )  \
     do { \
         int colorful_fp = isatty ( fileno(stderr));\
@@ -358,6 +389,10 @@ const T* is_null( const T* x , const T* y )
                 ,  ##__VA_ARGS__ );\
          if (colorful_fp) { fprintf( stderr, "%s", _CONSOLE_RESET_COLOR ); } \
     } while(0) 
+#else
+#define debug_printf LOG_DEBUG
+#define debug_printf_yellow LOG_WARN
+#endif
 
 class _PlainFuncTracer
 {
@@ -398,13 +433,47 @@ public:
 
 int32_t inline  parse_int(const char* buf, size_t buf_size)
 {
+#ifdef __GNUC__
     char buf2[buf_size + 1];
     buf2[buf_size]= 0;
+#else
+	char* buf2 = (char*)alloca(buf_size + 1);
+	buf2[buf_size] = 0;
+#endif
 
     memcpy((void*)buf2,(void*)buf, buf_size);
 
     return atoi(buf2);
 }
 #define PARSE_INT(a) parse_int( a, sizeof(a))
+
+
+
+//取本进程exe全路径
+CString get_exe_path();
+
+//不以‘/’结尾
+CString dir_from_file_path(const char * file_path);
+
+//取本进程exe所在目录，不以‘/’结尾
+CString get_exe_dir();
+
+// realpath 的wrapper
+CString real_path(const char * path );
+
+// aka.  /bin/bash -c ${cmd_line} 
+int shell_cmd_no_wait(const char * cmd_line);
+
+// exec shell cmd, get stdout as string
+// return 0 if cmd success; return > 0 if 'cmd' fails; return < 0  if this api fails.
+int shell_cmd(const char * cmd_line, CString& output );
+
+struct tm* date_add_ym(struct tm* date, int y, int m);
+
+int get_ym_days(int y, int m); // 'm':  The number of months since January, in the range 0 to 11.
+
+CString hex_dump(const unsigned char * buf, int buf_len, int pad_lf );
+
+CString get_primary_mac();
 
 #endif

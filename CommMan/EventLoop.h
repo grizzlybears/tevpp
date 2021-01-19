@@ -12,8 +12,9 @@ class SimpleEventLoop
 public:
     SimpleEventLoop():dns_base(NULL)
     {
+#ifdef __GNUC__
         evthread_use_pthreads();
-        
+#endif        
         base = event_base_new();
         if (!base) {
             throw SimpleException("Could not initialize event_base.\n");

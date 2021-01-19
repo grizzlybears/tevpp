@@ -33,7 +33,7 @@ public:
         return my_app->get_event_base();
     }
     
-    SimpleEventLoop  * get_app()
+    SimpleEventLoop  * get_app() const
     {
         return my_app;
     }
@@ -54,16 +54,17 @@ public:
 
     virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen) = 0;
 
-    virtual void start_listen_on_fd( evutil_socket_t fd, unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE);
+    virtual void start_listen_on_fd( evutil_socket_t fd, unsigned flags = LEV_OPT_CLOSE_ON_EXEC |LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE);
 
     virtual void start_listen_on_addr(const struct sockaddr *sa, int socklen
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+            , unsigned flags = LEV_OPT_CLOSE_ON_EXEC | LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
 
     virtual void start_listen_on_tcp(const char* addr
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
-
+            , unsigned flags = LEV_OPT_CLOSE_ON_EXEC |LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+#ifdef __GNUC__    
     virtual void start_listen_on_un(const char* addr
-            , unsigned flags = LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+            , unsigned flags = LEV_OPT_CLOSE_ON_EXEC |LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE );
+#endif
 
 protected:
     SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.

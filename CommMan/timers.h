@@ -33,7 +33,7 @@ public:
         return loop->get_event_base();
     }
     
-    SimpleEventLoop  * get_app()
+    SimpleEventLoop  * get_app() const
     {
         return loop;
     }

@@ -32,9 +32,9 @@
 
 
 struct SPICE_ATTR_PACKED  ChunkHeader{
-    char sequence[8];  // 整数，左补空格
-                       // 会话中的消息流水号，客户端自行负责采号，服务端给回信的时候，回填对应的流水号。
-                       // 服务端直接推送消息的时候，此处为负数。
+    char sequence[10];  // 整数，左补空格
+                       // 会话中的消息流水号，发起方自行负责采号，服务端给回信的时候，回填对应的流水号。
+                       // 如果无须回信，或者不形成会话，此处为负数。
                        
     char space1[1];    // 空格
 
@@ -137,14 +137,14 @@ public:
     
 
     virtual void send_msg( int32_t seq, const Json::Value& jdata  );
-    virtual void send_error_msg( int32_t seq, const char * error_msg );
+    virtual void send_error_msg( int32_t seq, int32_t code, const char * error_msg );
     
 
     // 只用于libevent在conn上的回调
-    virtual void send_error_msg_then_bye( int32_t seq, const char * error_msg );
+    virtual void send_error_msg_then_bye( int32_t seq,  int32_t code, const char * error_msg );
     
-    // 用于main thread
-    virtual void send_error_msg_then_disconn( int32_t seq,  const char * error_msg );
+    // 用于worker threads
+    virtual void send_error_msg_then_disconn( int32_t seq,  int32_t code, const char * error_msg );
     
     //virtual void send_normal_ack( int32_t seq);
 
@@ -176,6 +176,57 @@ public:
     CString dump_2_str()const ;
 };
 
+// 报文是裸JSON的连接
+class NakedJsonConnection
+    :public  OuterPipe
+{
+public:
+    typedef OuterPipe MyBase;
+
+     NakedJsonConnection(SimpleEventLoop* loop)
+         : MyBase(loop)
+    { 
+        disconnect_if_all_sent = 0;
+    }
+
+    NakedJsonConnection(SimpleEventLoop* loop, evutil_socket_t fd  )
+         :MyBase(loop)
+    {
+        disconnect_if_all_sent = 0;
+        take_socket(fd );
+    }
+
+    virtual void on_readable();
+    virtual void on_writable();
+
+
+    //返回: >  0  成功获得json
+    //      == 0  没获得json
+    //      <  0  其他失败
+    int fetch_msg(Json::Value&  root );
+
+    //通常需要重载本函数
+    virtual int really_process_msg(const Json::Value&  root ); 
+
+    virtual void send_msg( const Json::Value& jdata  );
+
+   
+    //virtual void send_normal_ack( int32_t seq);
+
+    //通常需要重载本函数
+    virtual CString dump_2_str() const
+    {
+        return "[NakedJsonConnection]";
+    }
+
+    void mark_exiting()
+    { 
+        disconnect_if_all_sent = 1;
+    }
+
+    int disconnect_if_all_sent; // 数据发送光就断开
+
+};
 
 
 #endif

@@ -7,20 +7,27 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
-#include <unistd.h>
-#include <iconv.h>
 
 #include <string>
 #include <stdexcept>
+#include <vector>
 
-#ifndef _MSC_VER
+#ifdef __GNUC__
+#include <unistd.h>
+#include <iconv.h>
+#define attr_printf23 __attribute__((format(printf,2,3)))
+#else 
+    // this is VC
+#define attr_printf23
+#include <malloc.h>
+#endif
 
 typedef const char * LPCTSTR;
 class CString:
 	public std::string
 {
 public:
-	explicit CString(LPCTSTR pszFormat, ...) __attribute__((format(printf,2,3)))
+	explicit CString(LPCTSTR pszFormat, ...) attr_printf23
 	{
 		va_list pArg;
 		va_start(pArg, pszFormat);    
@@ -58,16 +65,22 @@ public:
     {
         Format("%lu",l);
     }
-    
+
+#ifdef __GNUC__    
     CString(long long ll )
     {
         Format("%lld",ll);
     }
+#endif
 
 	CString(time_t t )
 	{
 		struct tm the_time;
-		localtime_r(&t , &the_time);		
+#ifdef __GNUC__
+		localtime_r(&t , &the_time);
+#else
+        localtime_s(&the_time , &t );
+#endif
 		char buf[100];
 		snprintf(buf
 				,sizeof(buf)-1
@@ -86,14 +99,29 @@ public:
 	{
 		clear();
 	}		
+#ifdef _MSC_VER
+    int vasprintf(char** pbuffer, const char* format, va_list args)
+    {
+        int     len;
+        len = _vscprintf(format, args) + 1; // _vscprintf doesn't count terminating '\0'
+        *pbuffer = (char*)malloc(len );
+        if (! (*pbuffer))
+        {
+            return -1;
+        }
+        vsprintf(*pbuffer, format, args); // C4996
+        return len;
+    }
 
-	void Format(LPCTSTR pszFormat, ...) __attribute__((format(printf,2,3)))
+#endif
+
+	void Format(LPCTSTR pszFormat, ...) attr_printf23
 	{
 		va_list pArg;
 		va_start(pArg, pszFormat);    
 
 		char * pBuf;
-		int i =vasprintf(&pBuf, pszFormat, pArg);
+		int i = vasprintf(&pBuf, pszFormat, pArg);
 
 		if ( -1 != i)
 		{
@@ -110,7 +138,7 @@ public:
 		va_end(pArg);
 	}
 
-        void format_append(LPCTSTR pszFormat, ...)  __attribute__((format(printf,2,3))) 
+        void format_append(LPCTSTR pszFormat, ...)  attr_printf23
         {
           va_list pArg;
           va_start(pArg, pszFormat);    
@@ -162,17 +190,17 @@ public:
 		return *this;
 	}
 
-	operator LPCTSTR ()
+	operator LPCTSTR () const 
 	{
 		return c_str();
 	}
 
-    const char * GetString()
+    const char * GetString() const
     {
 		return c_str();
     }
     
-    bool start_with(const char * s)
+    bool start_with(const char * s) const
     {
         size_t len = strlen(s);
         if (size() < len)
@@ -372,7 +400,11 @@ public:
     {
         this->clear();
         struct tm the_time;
+#ifdef __GNUC__
         gmtime_r(&now , &the_time);
+#else
+        gmtime_s(&the_time , &now );
+#endif
         this->Format("%04u-%02u-%02u %02u:%02u:%02u", the_time.tm_year + 1900
                 , the_time.tm_mon + 1
                 , the_time.tm_mday
@@ -382,6 +414,7 @@ public:
         return *this;
     }
 
+#ifdef __GNUC__
     time_t to_time_t()
     {
       struct tm t;
@@ -442,7 +475,7 @@ public:
 
 		return *this;
     }
-    
+#endif // #ifdef __GNUC__    
 
 	//如果自己是空，则返回NULL；否则返回c_str()
 	const char * nullable()
@@ -454,7 +487,34 @@ public:
 
 typedef CString CAtlStringA;
 
-#endif // ifndef _MSC_VER
+inline size_t str_split(std::vector<CString>& result, const char *str, char c = ' ')
+{
+    do
+    {
+        const char *begin = str;
+        while(*str != c && *str)
+            str++;
+
+        result.push_back(std::string(begin, str));
+    } while (0 != *str++);
+
+    return result.size();
+}
+
+inline int parse_addr_port(const char * addr_port, CString& addr, int* port)
+{ 
+    std::vector<CString> tokens;
+    size_t i = str_split(tokens, addr_port, ':');
+    if (2 != i)
+    {
+       //throw SimpleException("Bad 'env_board_addr' in  config");
+       return 1;
+    }
+
+    addr = tokens[0];
+    *port = atoi(tokens[1].c_str());
+    return 0;
+}
 
 
 #endif 

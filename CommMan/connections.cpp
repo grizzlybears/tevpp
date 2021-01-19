@@ -1,9 +1,14 @@
 
 #include "connections.h"
 
+#ifdef __GNUC__
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#else
+#include <winsock2.h>
+#endif
+
 
 void BaseConnection::release_bev()
 { 
@@ -80,11 +85,55 @@ void BaseConnection::connect_tcp(const char *hostname, int port, int   options)
     bufferevent_enable(bev, EV_READ|EV_WRITE);
     bufferevent_socket_connect_hostname( bev, my_app->get_dns_base(), AF_UNSPEC, hostname, port);
 }
-  
+
+void BaseConnection::connect_tcp2(const char* host_port, int   options )
+{ 
+    CString addr;
+    int port;
+
+    int r = parse_addr_port( host_port
+             , addr, &port);
+    if (r)
+    {
+        throw SimpleException("Bad addr format");
+    }
+
+    const char* hostname = addr.c_str();
+
+    bev = bufferevent_socket_new(get_event_base(), -1, options);
+    if (!bev) {
+        throw SimpleException("Error constructing bufferevent");
+    }
+
+    bufferevent_setcb(bev, trampoline_readable, trampoline_writable, trampoline_event, (void*)this);
+    bufferevent_enable(bev, EV_READ | EV_WRITE);
+    bufferevent_socket_connect_hostname(bev, my_app->get_dns_base(), AF_UNSPEC, hostname, port);
+
+}
+
+void BaseDiagram::bind_udp2(const char* addr_port)
+{  
+    CString addr;
+    int port;
+
+    int r = parse_addr_port( addr_port
+             , addr, &port);
+    if (r)
+    {
+        throw SimpleException("Bad addr format");
+    }
+
+    bind_udp(addr.c_str(), port);
+}
+
 // bind 'this' to udp addr:port
 void BaseDiagram::bind_udp(const char *addr, int port)
 { 
-    int                 flag = 1;
+#ifdef __GNUC__
+    int     flag = 1;
+#else
+    char    flag = 1;
+#endif
     struct sockaddr_in  sin;
  
     /* Create endpoint */
@@ -94,7 +143,7 @@ void BaseDiagram::bind_udp(const char *addr, int port)
  
     /* Set socket option */
     if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int)) < 0) {
-        close(sock_fd);
+        evutil_closesocket(sock_fd);
         sock_fd =-1;
         throw SimpleException("Error while setting udp socket to 'SO_REUSEADDR', errno: %d", errno);
     }
@@ -102,12 +151,16 @@ void BaseDiagram::bind_udp(const char *addr, int port)
     /* Set IP, port */
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
+#ifdef __GNUC__
     sin.sin_addr.s_addr = inet_addr(addr);
+#else
+    InetPton(AF_INET, addr, &sin.sin_addr.s_addr);
+#endif
     sin.sin_port = htons(port);
  
     /* Bind */
     if (bind(sock_fd, (struct sockaddr *)&sin, sizeof(struct sockaddr)) < 0) {
-        close(sock_fd);
+        evutil_closesocket(sock_fd);
         sock_fd =-1;
         throw SimpleException("Error while binding udp on %s:%d, errno: %d", addr, port, errno);
     }
@@ -139,11 +192,12 @@ void  BaseDiagram::release_ev()
 
     if (sock_fd >=0 )
     {
-        close(sock_fd);
+        evutil_closesocket(sock_fd);
         sock_fd = -1;
     }
 }
 
+#ifdef __GNUC__
 // connect 'this' to unix domain socket at 'path' 
 void BaseConnection::connect_unix(const char *path, int   options )
 { 
@@ -161,7 +215,7 @@ void BaseConnection::connect_unix(const char *path, int   options )
 
     bufferevent_socket_connect(bev, (struct sockaddr *) &server , sizeof server);
 }
-
+#endif
 
 void BaseConnection::on_conn_event(short events)
 { 
@@ -195,6 +249,12 @@ void BaseConnection::on_conn_event(short events)
         post_disconnected();
     }
 
+}
+
+void AddrInfo::load_from_addr(const struct sockaddr_in* peer_addr )
+{ 
+    peer_port = ntohs( peer_addr->sin_port);
+    inet_ntop(AF_INET, &peer_addr->sin_addr, peer_ipstr, sizeof peer_ipstr);
 }
 
 void AddrInfo::get_peer_info(int s)
@@ -257,10 +317,10 @@ void  OuterPipe::release_self()
     }
 }
 
-CString OuterPipeMan::dump_2_str()
+CString OuterPipeMan::dump_2_str() const
 {
     CString s;
-    iterator it;
+    const_iterator it;
     for (it = begin(); it != end() ; it++)
     { 
         OuterPipe* the_pipe = it->second; 

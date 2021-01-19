@@ -13,6 +13,12 @@
 #include "timers.h"
 #include <deque>
 
+#ifdef _MSC_VER
+#define DEFAULT_BEV_OPTION (BEV_OPT_CLOSE_ON_FREE)
+#else
+#define DEFAULT_BEV_OPTION (BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE)
+#endif
+
 class BaseConnection
 {
 public:
@@ -32,7 +38,7 @@ public:
         return my_app->get_event_base();
     }
 
-    SimpleEventLoop  * get_app()
+    SimpleEventLoop  * get_app() const
     {
         return my_app;
     }
@@ -40,7 +46,7 @@ public:
     // attach 'this' to an existing fd
     virtual void take_socket(evutil_socket_t fd
             , short event_mask = EV_WRITE |  EV_READ
-            , int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+            , int   options = DEFAULT_BEV_OPTION);
 
     // attach 'this' to an existing bufferevent
     virtual void take_bev(struct bufferevent    *bev
@@ -49,12 +55,13 @@ public:
 
 
     // connect 'this' to tcp addr:port
-    virtual void connect_tcp(const char *hostname, int port, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE); 
+    virtual void connect_tcp(const char *hostname, int port, int   options = DEFAULT_BEV_OPTION);
+    virtual void connect_tcp2(const char* host_port, int   options = DEFAULT_BEV_OPTION);
 
-    
+#ifdef __GNUC__ 
     // connect 'this' to unix domain socket at 'path' 
     virtual void connect_unix(const char *path, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
-
+#endif
     virtual void post_disconnected()
     {
         delete this;
@@ -121,6 +128,7 @@ public:
 
     // bind 'this' to udp addr:port
     virtual void bind_udp(const char *addr, int port);
+    virtual void bind_udp2(const char* addr_port);
 
     void release_ev();
  
@@ -133,7 +141,7 @@ public:
 protected:
     SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.
     struct event * the_event;
-    int  sock_fd;
+    evutil_socket_t  sock_fd;
 
 };
 
@@ -178,12 +186,43 @@ public:
 
     void get_peer_info(int s);
 
+    void load_from_addr(const struct sockaddr_in* peer_addr );
+
     CString to_str() const;
 
 };
 
 
 #define MAKE_SURE_OUTGOING_DIAGRAM_CONTINUE  EvBufAutoLocker __make_sure_msg_conti(bufferevent_get_output(get_bev()))
+
+struct PipePara{
+    unsigned long pipe_id;
+    int32_t       para1;  // usually here can be 'S1'  , ref following section
+    int64_t       para2; 
+    CString       para3;
+    // 此处再放一个shared_ptr可以任意扩展，直接把指针塞在para不好，释放的时机不易把握，但一般没这么复杂的需求
+ 
+    PipePara()
+        :pipe_id(0), para1(0),para2(0)
+    {
+    }
+
+    PipePara(unsigned long id)
+        :pipe_id(id), para1(0),para2(0)
+    {
+    }
+
+};
+
+// 收到'sesion token'的报文，转交'PipePara'的管道处理
+// 适用场景:
+//      管道A 收到 问询报文x,  seq_no =  S1 (由问询方发号)
+//      管道A 向 管道B 转发问询报文x ,seq_no =  S2 (由本进程发号)
+//      管道B 上收到问询报文x的回信y
+//      管道B 需要把y转交管道A 处理
+typedef Map2<int32_t /*S2*/,  PipePara>        PipeLineTable;   // 上例中 B 需要的转发跳转表
+typedef Map2<int32_t /*S2*/, int /*dummy*/ >   PendingTokens;   // 上例中 A 需要的'等待中token'列表
+
 
 class OuterPipeMan;
 // 
@@ -210,7 +249,63 @@ public:
     unsigned long  pipe_id;  // 在OuterPipeMan中唯一识别每个command pipe
 
     int  pipe_type;  // 一个app可以有多种外界通信管道，留个口子区分一下
-                     // 这里没法做 enum，搞成摸版参数又太矫情了，留待导出类去#dfine常量吧
+                     // 这里没法做 enum，搞成摸版参数又太矫情了，留待导出类去#dfine常量吧 
+
+    PipeLineTable pipe_line;
+    PendingTokens pending_tokens;
+
+    void reg_pipe_line(int32_t token, unsigned long pipe_id)
+    { 
+        PipePara pipe(pipe_id);
+        pipe_line[token] = pipe;
+    }
+    
+    void reg_pipe_line(int32_t token, const PipePara& pipe)
+    { 
+        pipe_line[token] = pipe;
+    }
+    
+    void unreg_pipe_line(int32_t token)
+    { 
+        pipe_line.safe_remove(token);
+    }
+
+    // 返回 nonzero，表示找到了接力的管道id。
+    // 返回 0 , 表述无接力管道。
+    int find_dest_pipe(int32_t token, PipePara& pipe_para)
+    {        
+        PipeLineTable::iterator  it;
+        bool b = pipe_line.has_key2( token, it);
+        if (!b)
+        {
+           return -1;
+        }
+
+        pipe_para = it->second;
+
+        pipe_line.erase(it);
+        return 1;
+    }
+
+    void wait_4_response(int32_t token)
+    { 
+        pending_tokens[token] = 0;
+    }
+
+    // 返回non-zero  表示确实在等这个token的回信
+    // 返回0 表示没有在等
+    int unwait_if_waiting(int32_t token)
+    {
+        PendingTokens::iterator it;
+	    bool b =  pending_tokens.has_key2(token, it);
+        if (b)
+        {
+            pending_tokens.erase(it);
+            return 1;
+        }
+        return 0;
+    }
+
    
     int is_managed() const
     {
@@ -266,11 +361,11 @@ public:
 
 
     // 交由OuterPipeMan来管理
-    int  register_connection(OuterPipe* client  );
-    void unregister_connection(int pipe_id);
+    virtual int  register_connection(OuterPipe* client  );
+    virtual void unregister_connection(int pipe_id);
  
     
-    CString dump_2_str();
+    CString dump_2_str() const;
     SimpleEventLoop* event_loop;
 
     unsigned long allocate_new_id();

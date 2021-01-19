@@ -128,13 +128,13 @@ protected:
 // }
 
 
-void* WorkerThread::thread_main( )
+ThreadRetType WorkerThread::thread_main( )
 {
     try
     {
         //MyThreadHelper __dummy();
 
-        JobMessage* msg;
+        JobMessage* msg = NULL;
         while (1)
         {
             // try
@@ -205,15 +205,17 @@ void MsgSwitch::stop_worker()
 }
 
 
-void* PooledWorkerThread::thread_main( )
+ThreadRetType PooledWorkerThread::thread_main( )
 {
+#ifdef __GNUC__
     pthread_detach(this->_thread_handle);
+#endif
     
     register_to_pool();
 
     try
     {
-        JobMessage* msg;
+        JobMessage* msg = NULL;
         while (1)
         {
            try
@@ -289,6 +291,11 @@ void WorkerThreadPool::wait_until_all_workers_gone()
     {
         this->lock.wait();
     }
+#ifdef __GNUC__
+    sleep(1); // 略去了join，等一下，以免valgrind报leak
+#else
+    Sleep(1000);
+#endif 
 }
 
 int PooledMsgSwitch::create_inner_pipe()

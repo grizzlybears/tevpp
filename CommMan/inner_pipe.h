@@ -85,7 +85,7 @@ public:
      {
      }
      
-    virtual void* thread_main(); 
+    virtual ThreadRetType thread_main();
     JobQueue job_q;
 
     // MyConnection& get_db_conn()
@@ -160,7 +160,7 @@ public:
      {
      }
      
-    virtual void* thread_main(); 
+    virtual ThreadRetType thread_main();
 
 protected:
     WorkerThreadPool * my_pool; 
@@ -170,7 +170,11 @@ protected:
 };
 
 class WorkerThreadPool
+#ifdef __GNUC__
     :public SharedPtrMan< pthread_t ,PooledWorkerThread> 
+#else
+    : public SharedPtrMan< HANDLE, PooledWorkerThread>
+#endif
 {
 public:
      WorkerThreadPool(SimpleEventLoop  * loop)
