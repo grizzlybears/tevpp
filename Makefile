@@ -103,6 +103,11 @@ $(echo_target): $(echo_objs) $(CommMan_objs)
 $(udp_target): $(udp_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+YCM:
+	make clean
+	make > build.log
+	compiledb -p build.log
+
 clean:
 	rm -fr $(Objs) $(Target) $(Deps)
 
