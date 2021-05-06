@@ -1,7 +1,7 @@
 #
 # simple Makefile template :)
 #
-Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target) $(udp_target) $(wt2_target)
+Target=$(hello_target) $(hehe_target) $(cat_target) $(wt_target) $(echo_target) $(udp_target) $(wt2_target) $(http_server_target)
 
 sample_dir=samples
 
@@ -39,11 +39,16 @@ wt2_target=wt_demo2
 wt2_src=$(sample_dir)/wt_demo2.cpp
 wt2_objs:=$(patsubst %.cpp,%.o,$(wt2_src)) 
 
+# demo of 'simple http server'
+http_server_target=http_server_demo
+http_server_src=$(sample_dir)/http_server.cpp
+http_server_objs:=$(patsubst %.cpp,%.o,$(http_server_src)) 
+
 
 
 CommMan_objs:=$(patsubst %.cpp,%.o,$(wildcard CommMan/*.cpp)) $(patsubst %.cpp,%.o,$(wildcard CommMan/json/*.cpp))
 
-Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs) $(udp_objs) $(wt2_objs)
+Objs:= $(hello_objs) $(hehe_objs) $(CommMan_objs) $(cat_objs) $(wt_objs) $(echo_objs) $(udp_objs) $(wt2_objs) $(http_server_objs)
 
 #      以下摘自 `info make`
 #
@@ -103,6 +108,9 @@ $(echo_target): $(echo_objs) $(CommMan_objs)
 $(udp_target): $(udp_objs) $(CommMan_objs)
 	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
 
+$(http_server_target): $(http_server_objs) $(CommMan_objs)
+	$(CC) $^ $(LDFLAGS)  $(LOADLIBES) $(LDLIBS) -o $@
+
 YCM:
 	make clean
 	make > build.log
@@ -132,4 +140,10 @@ test_udp:$(udp_target)
 test_wt2:$(wt2_target) 
 	./$(wt2_target) 
 
+test_http_server:$(http_server_target) 
+	./$(http_server_target)  &
+	curl http://127.0.0.1:9090/
+	curl http://127.0.0.1:9090/foo
+	curl http://127.0.0.1:9090/bar
+	pkill -2 -f  $(http_server_target)
 
