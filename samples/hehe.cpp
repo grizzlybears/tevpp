@@ -25,6 +25,12 @@ public:
         connect_tcp( host, port);
     }
 
+    HelloClientConnection(SimpleEventLoop* loop, const char* path)
+         : BaseConnection(loop)
+    {
+        connect_generic( path);
+    }
+
     virtual void on_readable()
     {
         char buf[1024];
@@ -35,15 +41,11 @@ public:
         }
     }
     
-    virtual void on_conn_event(short events)
-    { 
-        if (events & (BEV_EVENT_ERROR|BEV_EVENT_EOF)) 
-        {
-            // we just quit.
-            event_base_loopexit( get_event_base(), NULL); 
-        }
-        // dont' let base class 'delete this'
-    };
+    virtual void post_disconnected()
+    {
+        event_base_loopexit( get_event_base(), NULL); 
+        delete this;
+    }
 };
 
 int main(int argc, char **argv)
@@ -51,7 +53,18 @@ int main(int argc, char **argv)
     try
 	{ 
         SimpleEventLoop loop;
-        HelloClientConnection  hehe(&loop, "127.0.0.1", PORT);
+        
+        if (2==argc)
+        { 
+            LOG_DEBUG("We take %s\n", argv[1]);
+            HelloClientConnection *hehe =  new HelloClientConnection (&loop, argv[1]);
+            (void)hehe; 
+        }
+        else
+        {
+            HelloClientConnection *hehe =  new HelloClientConnection (&loop, "127.0.0.1", PORT);
+           (void)hehe; 
+        }
 
         //2. also we handle ctrl-C
         QuitSignalHandler control_c_handler(&loop);

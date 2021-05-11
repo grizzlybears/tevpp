@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <fcntl.h>
 #else
 #include <winsock2.h>
 #endif
@@ -214,7 +215,26 @@ void BaseConnection::connect_unix(const char *path, int   options )
     bufferevent_enable(bev, EV_READ|EV_WRITE);
 
     bufferevent_socket_connect(bev, (struct sockaddr *) &server , sizeof server);
+} 
+
+// connect 'this' to generic filesystem path, i.e. '/dev/ttyS0'
+int BaseConnection::connect_generic(const char* path, int   options )
+{
+    int fd = open(path, O_RDWR| O_NOCTTY | O_NONBLOCK);
+    if (fd < 0 )
+    {	
+        int code = errno; 
+		char* msg = strerror(code ); 
+	    LOG_ERROR( "Failed  while open '%s', errno = %d, %s\n", path , code, msg ); 
+        return -1;
+    }
+
+    take_socket(fd);
+
+    return 0;
 }
+
+
 #endif
 
 void BaseConnection::on_conn_event(short events)

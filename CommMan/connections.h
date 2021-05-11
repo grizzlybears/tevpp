@@ -60,8 +60,13 @@ public:
 
 #ifdef __GNUC__ 
     // connect 'this' to unix domain socket at 'path' 
-    virtual void connect_unix(const char *path, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE);
+    virtual void connect_unix(const char *path, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE); 
+
+    // connect 'this' to generic filesystem path, i.e. '/dev/ttyS0'
+    virtual int connect_generic(const char* path, int   options = DEFAULT_BEV_OPTION);
+
 #endif
+
     virtual void post_disconnected()
     {
         delete this;
