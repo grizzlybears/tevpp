@@ -48,6 +48,11 @@ public:
             , short event_mask = EV_WRITE |  EV_READ
             , int   options = DEFAULT_BEV_OPTION);
 
+    virtual int pre_take_socket(evutil_socket_t fd)
+    {
+        return 0;
+    }
+
     // attach 'this' to an existing bufferevent
     virtual void take_bev(struct bufferevent    *bev
             , short event_mask = EV_WRITE |  EV_READ

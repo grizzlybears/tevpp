@@ -53,6 +53,12 @@ void BaseConnection::trampoline_event(struct bufferevent *bev, short what, void 
 
 void BaseConnection::take_socket(evutil_socket_t fd, short event_mask, int options)
 {
+    int r = pre_take_socket(fd);
+    if (r)
+    {
+        throw SimpleException("Failed in pre_take_fd hook on fd #%d", fd);
+    }
+
     bev = bufferevent_socket_new( get_event_base(), fd, options);
     if (!bev) {
         throw SimpleException("Error constructing bufferevent on fd #%d", fd);
