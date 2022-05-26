@@ -14,6 +14,8 @@ public:
     {
 #ifdef __GNUC__
         evthread_use_pthreads();
+#else
+        evthread_use_windows_threads();
 #endif        
         base = event_base_new();
         if (!base) {

@@ -1,4 +1,4 @@
-#ifndef  __CONNECTIONS_H__
+﻿#ifndef  __CONNECTIONS_H__
 #define  __CONNECTIONS_H__
 
 #include <event2/event.h>
@@ -13,11 +13,13 @@
 #include "timers.h"
 #include <deque>
 
-#ifdef _MSC_VER
-#define DEFAULT_BEV_OPTION (BEV_OPT_CLOSE_ON_FREE)
-#else
-#define DEFAULT_BEV_OPTION (BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE)
-#endif
+#define DEFAULT_BEV_OPTION (BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE| BEV_OPT_DEFER_CALLBACKS )
+
+// BEV_OPT_DEFER_CALLBACKS : 
+//   if we call  connect_tcp in ctor , and 'delete  BaseConnection' in 'failure' event handler,
+//   then 'Network is unreachable' event could be nested.
+//   That means we may get dtor called before ctor finished!
+//
 
 class BaseConnection
 {
@@ -65,7 +67,7 @@ public:
 
 #ifdef __GNUC__ 
     // connect 'this' to unix domain socket at 'path' 
-    virtual void connect_unix(const char *path, int   options =  BEV_OPT_THREADSAFE | BEV_OPT_CLOSE_ON_FREE); 
+    virtual void connect_unix(const char *path, int   options =   DEFAULT_BEV_OPTION); 
 
     // connect 'this' to generic filesystem path, i.e. '/dev/ttyS0'
     virtual int connect_generic(const char* path, int   options = DEFAULT_BEV_OPTION);
@@ -87,6 +89,8 @@ public:
         queue_to_send( (const void *)s.c_str(),  s.size());
     }
 
+    static  int tcp_keepalive_on(evutil_socket_t  fd);
+
     static  void trampoline_readable(struct bufferevent *bev,  void *ctx);
     static  void trampoline_writable(struct bufferevent *bev,  void *ctx);
     static  void trampoline_event(struct bufferevent *bev, short what, void *ctx);
@@ -104,7 +108,14 @@ public:
     struct bufferevent * get_bev()
     {
         return bev;
-    } 
+    }
+
+    virtual CString to_str() const
+    {
+        return desc;
+    }
+
+    CString desc;
 
 protected:
     SimpleEventLoop       *my_app;  // just ref, dont touch its life cycle.
@@ -194,7 +205,7 @@ public:
         peer_ipstr[0] = 0; 
     }
 
-    void get_peer_info(int s);
+    int get_peer_info(int s);
 
     void load_from_addr(const struct sockaddr_in* peer_addr );
 
@@ -372,10 +383,13 @@ public:
 
     // 交由OuterPipeMan来管理
     virtual int  register_connection(OuterPipe* client  );
-    virtual void unregister_connection(int pipe_id);
+    virtual void unregister_connection(unsigned long  pipe_id);
  
     
-    CString dump_2_str() const;
+    OuterPipe* find_first_pipe_by_type(int pipe_type);
+    virtual CString dump_2_str() const;
+    virtual CString dump_pipes_by_type(int type) const;
+
     SimpleEventLoop* event_loop;
 
     unsigned long allocate_new_id();
@@ -397,6 +411,77 @@ public:
 protected:
     CString  _mess;
 };
+
+template <int pipe_type, typename PipeType , int check_interval = 10>
+class SingletonOutgoingConnGuard
+    : public TimerHandler
+{
+public: 
+    typedef  TimerHandler  MyBase;
+
+    SingletonOutgoingConnGuard(SimpleEventLoop* loop,  OuterPipeMan * pipe_man_, const CString& addr)
+        : TimerHandler(loop)
+    {
+        this->peer_addr = addr; 
+        this->pipe_man  = pipe_man_;
+        struct timeval interval = { check_interval  , 0 };   
+        start_timer(interval);  
+        timer_serial_no = 0;
+    }
+
+    int is_present()const
+    {
+        return "" !=  peer_addr;
+    }
+
+    unsigned int timer_serial_no;
+
+    virtual void timer_cb()
+    { 
+        if (!is_present() )
+        {
+            this->stop_timer();
+            return;
+        }
+
+        PipeType * pipe  =  find_to_exist_conn();
+
+        if ( pipe)
+        { 
+            timer_serial_no ++;
+            this->timer_when_pipe_present(pipe, timer_serial_no );
+            return;
+        }
+
+        // 尝试连接
+        pipe = new PipeType(get_app() , peer_addr.c_str());
+        timer_serial_no = 0;
+
+    }
+
+    virtual void timer_when_pipe_present(PipeType * pipe, unsigned int serial_no)
+    {
+    }
+
+    OuterPipeMan * pipe_man; // ref only
+    CString peer_addr;  //  地址:端口
+
+    PipeType  * find_to_exist_conn()
+    { 
+        OuterPipeMan::iterator it;
+
+        for (it = pipe_man->begin(); it != pipe_man->end() ; it++)
+        { 
+            OuterPipe * pipe = it->second; 
+            if ( pipe_type  == pipe->pipe_type)
+            {
+                return ( PipeType *) pipe;
+            }
+        }
+        return NULL;
+    }
+};
+
 
 
 #endif

@@ -80,10 +80,43 @@ void BaseConnection::take_bev(struct bufferevent * the_bev
     bufferevent_enable(bev, event_mask);
 }
 
+#ifdef __GNUC__ 
+int BaseConnection::tcp_keepalive_on(evutil_socket_t  fd)
+{
+    //debug_printf("keepalive with fd #%d.\n" , fd);
+    int optval;
+    socklen_t optlen = sizeof(optval);
+    optval = 1;
+    optlen = sizeof(optval);
+    if(setsockopt( fd , SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
+        SIMPLE_LOG_LIBC_ERROR( " SOL_SOCKET/ SO_KEEPALIVE", errno );
+        close(fd);
+        return 1;
+    }
+
+    return 0;
+}
+#endif
 
 void BaseConnection::connect_tcp(const char *hostname, int port, int   options)
 {
-    bev = bufferevent_socket_new( get_event_base(), -1, options);
+    evutil_socket_t  fd = -1;
+#ifdef __GNUC__ 
+    fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0); 
+    if (fd <0 )
+    {
+        SIMPLE_LOG_LIBC_ERROR( "soket", errno );
+        throw SimpleException("Error constructing socket");
+    }
+
+    int r = pre_take_socket(fd);
+    if (r)
+    {
+        throw SimpleException("Failed in pre_take_fd hook on fd #%d", fd);
+    }
+
+#endif
+    bev = bufferevent_socket_new( get_event_base(), fd, options);
     if (!bev) {
         throw SimpleException("Error constructing bufferevent");
     }
@@ -102,20 +135,11 @@ void BaseConnection::connect_tcp2(const char* host_port, int   options )
              , addr, &port);
     if (r)
     {
-        throw SimpleException("Bad addr format");
+        throw SimpleException("Bad addr format while tring to connect: %s", host_port);
     }
 
     const char* hostname = addr.c_str();
-
-    bev = bufferevent_socket_new(get_event_base(), -1, options);
-    if (!bev) {
-        throw SimpleException("Error constructing bufferevent");
-    }
-
-    bufferevent_setcb(bev, trampoline_readable, trampoline_writable, trampoline_event, (void*)this);
-    bufferevent_enable(bev, EV_READ | EV_WRITE);
-    bufferevent_socket_connect_hostname(bev, my_app->get_dns_base(), AF_UNSPEC, hostname, port);
-
+    connect_tcp(hostname,  port,   options);
 }
 
 void BaseDiagram::bind_udp2(const char* addr_port)
@@ -127,7 +151,7 @@ void BaseDiagram::bind_udp2(const char* addr_port)
              , addr, &port);
     if (r)
     {
-        throw SimpleException("Bad addr format");
+        throw SimpleException("Bad addr format while trying to bind udp: %s", addr_port);
     }
 
     bind_udp(addr.c_str(), port);
@@ -239,8 +263,6 @@ int BaseConnection::connect_generic(const char* path, int   options )
 
     return 0;
 }
-
-
 #endif
 
 void BaseConnection::on_conn_event(short events)
@@ -249,7 +271,7 @@ void BaseConnection::on_conn_event(short events)
 
     if (events & BEV_EVENT_EOF) {
         int fd = bufferevent_getfd(bev); 
-        LOG_INFO("Connection closed on fd #%d.\n", fd);
+        LOG_INFO("conn '%s' closed on fd #%d.\n", to_str().c_str(),fd);
         post_disconnected();
     }
     else if (events & BEV_EVENT_ERROR) {
@@ -258,11 +280,12 @@ void BaseConnection::on_conn_event(short events)
         int err = bufferevent_socket_get_dns_error(bev);
         if (err)
         {
-            LOG_WARN("DNS error: '%s' on fd #%d.\n", evutil_gai_strerror(err), fd);
+            LOG_WARN("DNS error: '%s' on '%s' fd #%d.\n", evutil_gai_strerror(err), to_str().c_str(), fd);
         }
         else
         {
-            LOG_WARN("Got an error on the connection fd #%d: %s\n"
+            LOG_WARN("Error on '%s' fd #%d: %s\n"
+                , to_str().c_str()
                 ,fd 
                 ,strerror(last_err)
                 );/*XXX win32*/
@@ -271,7 +294,7 @@ void BaseConnection::on_conn_event(short events)
     }
     else if (events & BEV_EVENT_TIMEOUT) {
         int fd = bufferevent_getfd(bev); 
-        LOG_INFO("Connection got time-out on fd #%d.\n", fd);
+        LOG_INFO("conn '%s' got time-out on fd #%d.\n", to_str().c_str(), fd);
         post_disconnected();
     }
 
@@ -283,13 +306,20 @@ void AddrInfo::load_from_addr(const struct sockaddr_in* peer_addr )
     inet_ntop(AF_INET, &peer_addr->sin_addr, peer_ipstr, sizeof peer_ipstr);
 }
 
-void AddrInfo::get_peer_info(int s)
+int AddrInfo::get_peer_info(int s)
 { 
     socklen_t len;
     struct sockaddr_storage addr;
 
     len = sizeof addr;
-    getpeername(s, (struct sockaddr*)&addr, &len);
+    int r = getpeername(s, (struct sockaddr*)&addr, &len);
+    if (r)
+    {
+        int code = errno; 
+        char* msg = strerror(code ); 
+        LOG_WARN("%s\n", msg ); 
+        return r;
+    }
 
     // deal with both IPv4 and IPv6:
     if (addr.ss_family == AF_INET) {
@@ -309,6 +339,7 @@ void AddrInfo::get_peer_info(int s)
         strncpy(peer_ipstr, "non-inet peer", sizeof peer_ipstr);
     }
 
+    return 0;
 }
 
 CString AddrInfo::to_str() const
@@ -333,12 +364,12 @@ void  OuterPipe::release_self()
 {
     if (is_managed())
     {
-        debug_printf("unreg from clientman then delete '%s'\n", dump_2_str().c_str());
+        LOG_DEBUG("unreg from clientman then delete '%s'\n", dump_2_str().c_str());
         get_pipe_man() -> unregister_connection( get_id() );
     }
     else
     {
-        debug_printf("directly delete '%s'\n", dump_2_str().c_str());
+        //LOG_DEBUG("directly delete '%s'\n", dump_2_str().c_str());
         delete this;
     }
 }
@@ -350,6 +381,24 @@ CString OuterPipeMan::dump_2_str() const
     for (it = begin(); it != end() ; it++)
     { 
         OuterPipe* the_pipe = it->second; 
+        s.format_append("%s\n" , the_pipe->dump_2_str().c_str());
+    }
+
+    return s;
+}
+
+CString OuterPipeMan::dump_pipes_by_type(int type) const
+{ 
+    CString s;
+    const_iterator it;
+    for (it = begin(); it != end() ; it++)
+    { 
+        OuterPipe* the_pipe = it->second; 
+        if (type != the_pipe->pipe_type)
+        {
+            continue;
+        }
+
         s.format_append("%s\n" , the_pipe->dump_2_str().c_str());
     }
 
@@ -399,6 +448,21 @@ void OuterPipeMan::timer_cb()
     }
 }
 
+OuterPipe* OuterPipeMan::find_first_pipe_by_type(int pipe_type)
+{  
+    iterator it;
+    for (it = begin(); it != end() ; it++)
+    { 
+        OuterPipe * pipe = it->second; 
+        if (  pipe_type == pipe->pipe_type)
+        {
+            return pipe;
+        }
+    }
+
+    return NULL;
+}
+
 
 unsigned long OuterPipeMan::allocate_new_id()
 {
@@ -428,7 +492,7 @@ int  OuterPipeMan::register_connection(OuterPipe* pipe  )
 }
 
 
-void OuterPipeMan::unregister_connection(int client_id)
+void OuterPipeMan::unregister_connection(unsigned long client_id)
 {
     //AutoLocker _yes_locked( lock );
     OuterPipe* p = get_item(client_id);

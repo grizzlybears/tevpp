@@ -38,6 +38,10 @@ public:
  
     virtual int pre_take_socket(evutil_socket_t fd)
     {
+        if (!serial)
+        {
+            return 0;
+        }
 
         LOG_INFO("configureing serail port...\n");
     
