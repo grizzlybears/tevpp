@@ -103,8 +103,11 @@ int main(int argc, char **argv){
 ```
 
 Sure, in real world, we need much more.
+
 The 'BaseConnection' should treat   'unix domain socket',  'serial port', 'generic file' , 'stdio' in similar way, and there should also be 'udp'  wrapper,  'timer', 'signal handler',  'http server wrapper', and so on.
+
 What is more important, we need a 'connection manager' when we build real (server ) applications.  And since we are on async style, we can not do any block operation (such as DB accessing) in any  'CB', we need worker-thread / thread-pool, and should be able to 'marshal' jobs between main-thread and worker-thread freely.
+
 When we have  all stuff mentioned above in hand, we can view the  framework of a brand new back-end service.
 
 Build dependences
