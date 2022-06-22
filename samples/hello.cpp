@@ -8,12 +8,6 @@
   And now, it also listens on a unix domain socket.
 */
 
-
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
-#include <signal.h>
-
 #include "EventLoop.h"
 #include "listeners.h"
 #include "signals.h"
@@ -27,8 +21,7 @@ class HelloServerConnection
 {
 public:
     HelloServerConnection(SimpleEventLoop* loop, evutil_socket_t fd )
-         : BaseConnection(loop)
-    {
+         : BaseConnection(loop) {
         take_socket(fd, EV_WRITE );
     }
 
@@ -47,12 +40,10 @@ class HelloWorldListener
 {
 public: 
      HelloWorldListener(SimpleEventLoop  * loop) 
-        :BaseListener(loop )
-    {
+        :BaseListener(loop ) {
     }
 
-    virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen)
-    {
+    virtual void listener_cb( evutil_socket_t fd, struct sockaddr *sa, int socklen) {
         HelloServerConnection* conn = new HelloServerConnection( my_app, fd );
         conn->queue_to_send( MESSAGE, strlen(MESSAGE));
     }
