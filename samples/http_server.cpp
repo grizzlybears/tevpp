@@ -17,6 +17,7 @@
 #include "simple_http_server.h"
 
 static const int PORT = 9090;
+typedef std::vector<char > DynaBuf;
 
 class SampleHttpServer
     :public BaseHttpServer
@@ -26,6 +27,8 @@ public:
         :BaseHttpServer( loop, addr, port )
     {
     }
+    
+    void generic_handler(struct evhttp_request * req); 
 };
 
 class HandlerFoo
@@ -52,6 +55,7 @@ public:
         evhttp_send_reply(req, HTTP_OK, "", out_buf);
 
     }
+
 
 };
 
@@ -91,5 +95,69 @@ int main(int argc, char **argv)
         return 1;
 	}
     return 0;
+}
+
+void  SampleHttpServer::generic_handler(struct evhttp_request * req)
+{ 
+    int req_method = evhttp_request_get_command(req);
+    const char *cmdtype;
+
+	switch (req_method ) {
+	case EVHTTP_REQ_GET: cmdtype = "GET"; break;
+	case EVHTTP_REQ_POST: cmdtype = "POST"; break;
+	case EVHTTP_REQ_HEAD: cmdtype = "HEAD"; break;
+	case EVHTTP_REQ_PUT: cmdtype = "PUT"; break;
+	case EVHTTP_REQ_DELETE: cmdtype = "DELETE"; break;
+	case EVHTTP_REQ_OPTIONS: cmdtype = "OPTIONS"; break;
+	case EVHTTP_REQ_TRACE: cmdtype = "TRACE"; break;
+	case EVHTTP_REQ_CONNECT: cmdtype = "CONNECT"; break;
+	case EVHTTP_REQ_PATCH: cmdtype = "PATCH"; break;
+	default: cmdtype = "unknown"; break;
+	}
+
+
+    std::string uri = evhttp_request_get_uri(req);
+
+    struct evbuffer *buf;
+	buf = evhttp_request_get_input_buffer(req);
+
+	CString s("Received a %s request for %s, req = %p\n"
+            ,  cmdtype
+            , uri.c_str()
+            , req
+            );
+
+    struct evkeyvalq *headers;
+	struct evkeyval *header;
+
+	headers = evhttp_request_get_input_headers(req);
+	for (header = headers->tqh_first; header;
+	    header = header->next.tqe_next) {
+        s.format_append("    %s: %s\n", header->key, header->value);
+	}
+
+	s+= "post data: <<<\n";
+    LOG_DEBUG("%s", s.c_str());
+
+    DynaBuf post_data;
+    size_t data_len = evbuffer_get_length(buf); 
+    post_data.resize( data_len + 1);
+    post_data[data_len] = 0;
+
+	evbuffer_remove(buf, & post_data[0], data_len);
+
+	fwrite(& post_data[0], 1, data_len , stderr);    // LOG_XXX 最终写到stderr
+	RAW_LOG("\n>>>\n");
+
+    //////////////////////////////////////////////////////////////
+
+    struct evbuffer* out_buf = evhttp_request_get_output_buffer(req);
+    evbuffer_add_printf(out_buf
+            , "'%s' is not handled.\n", uri.c_str());
+
+    evhttp_send_reply(req, HTTP_NOTFOUND, "", out_buf);
+    
+    //LOG_WARN("'%s' is not handled.\n", uri.c_str());
+
 }
 

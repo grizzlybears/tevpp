@@ -242,7 +242,7 @@ public:
         if (i)
         {
             LOG_ERROR("Failed in register new incoming conn.");
-            free(conn); 
+            delete conn; 
         }
     }
 
@@ -267,7 +267,7 @@ public:
         if (i)
         {
             LOG_ERROR("Failed in register new incoming conn.");
-            free(conn); 
+            delete conn; 
         }
     }
 
