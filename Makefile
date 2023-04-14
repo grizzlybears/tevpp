@@ -142,8 +142,13 @@ test_wt2:$(wt2_target)
 
 test_http_server:$(http_server_target) 
 	./$(http_server_target)  &
+	@echo
 	curl http://127.0.0.1:9090/
+	@echo
 	curl http://127.0.0.1:9090/foo
+	@echo
 	curl http://127.0.0.1:9090/bar
+	@echo
+	@echo "Let's quit"
 	pkill -2 -f  $(http_server_target)
 
