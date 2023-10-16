@@ -34,6 +34,14 @@ public:
     void generic_handler(struct evhttp_request * req); 
     
     void handle_foo(struct evhttp_request * req);
+
+    std::vector<CString> posts;
+    void handle_list(struct evhttp_request * req);
+     
+    void handle_new(struct evhttp_request * req, const DynaBuf& post_data);
+    
+    void show_list(struct evhttp_request * req, struct evbuffer* out_buf );
+    void show_form(struct evhttp_request * req, struct evbuffer* out_buf );
 };
 
 int main(int argc, char **argv)
@@ -139,6 +147,14 @@ void  SampleHttpServer::generic_handler(struct evhttp_request * req)
         {
             this->handle_foo(req);
         }
+        else if ("/list" == uri )
+        {
+            this->handle_list(req);
+        }
+        else if ("/new" == uri )
+        {
+            this->handle_new(req, post_data);
+        }
     }
     catch (std::exception& e)
     { 
@@ -171,7 +187,7 @@ void SampleHttpServer::handle_foo(struct evhttp_request * req)
     struct evbuffer* out_buf = evhttp_request_get_output_buffer(req);
     if (!out_buf)
     {
-        LOG_WARN("Failed to  evhttp_request_get_output_buffer(). \n");
+        LOG_THEN_THROW("Failed to  evhttp_request_get_output_buffer(). \n");
         return;
     }
 
@@ -181,4 +197,91 @@ void SampleHttpServer::handle_foo(struct evhttp_request * req)
     evhttp_send_reply(req, HTTP_OK, "", out_buf);
 
 }
+
+void SampleHttpServer::handle_list(struct evhttp_request * req)
+{ 
+    struct evbuffer* out_buf = evhttp_request_get_output_buffer(req);
+    if (!out_buf)
+    {
+        LOG_THEN_THROW("Failed to  evhttp_request_get_output_buffer(). \n");
+        return;
+    }
+
+    evbuffer_add_printf(out_buf
+            , "<html><body>\n"); 
+
+    this->show_list(req, out_buf);
+    this->show_form(req, out_buf);
+
+    evbuffer_add_printf(out_buf
+            , "</body></html>\n");
+
+
+    evhttp_send_reply(req, HTTP_OK, "", out_buf);
+
+}
+
+void SampleHttpServer::show_list(struct evhttp_request * req, struct evbuffer* out_buf )
+{
+    std::vector<CString>::iterator it;
+    for (it = this->posts.begin(); it != this->posts.end(); it++ )
+    {
+        CString s("<pre>%s</pre><hr/>\n", it->c_str());
+        evbuffer_add_printf(out_buf, "%s", s.c_str());
+    }
+
+
+}
+
+void SampleHttpServer::show_form(struct evhttp_request * req, struct evbuffer* out_buf )
+{
+    CString form;
+    form += "<form action=\"/new\"  method=\"post\">\n";
+    form += "<input type=\"text\"  name=\"content\"><br><br>\n";
+    form += "<input type=\"submit\" value=\"Submit\">\n</form>\n";
+    evbuffer_add_printf(out_buf, "%s", form.c_str());
+}
+
+void SampleHttpServer::handle_new(struct evhttp_request * req, const DynaBuf& post_data)
+{ 
+    struct evbuffer* out_buf = evhttp_request_get_output_buffer(req);
+    if (!out_buf)
+    {
+        LOG_THEN_THROW("Failed to  evhttp_request_get_output_buffer(). \n");
+        return;
+    }
+    std::vector<CString> pairs; 
+    size_t n = str_split( pairs, &post_data[0],  '&');
+    if (!n)
+    {
+        LOG_THEN_THROW("no kv pair found in post data.\n");
+        return;
+    }
+    
+    std::vector<CString> kv; 
+    n = str_split( kv, pairs[0].c_str(),  '='); 
+    if (2 != n){
+        LOG_THEN_THROW("bad kv pair '%s'.\n", pairs[0].c_str());
+        return;
+    }
+
+    this->posts.push_back(kv[1]);
+
+
+    ////////////////////////////////////////////
+
+    evbuffer_add_printf(out_buf
+            , "<html><body>\n"); 
+
+    this->show_list(req, out_buf);
+    this->show_form(req, out_buf);
+
+    evbuffer_add_printf(out_buf
+            , "</body></html>\n");
+
+
+    evhttp_send_reply(req, HTTP_OK, "", out_buf);
+
+}
+
 
