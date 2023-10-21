@@ -128,7 +128,7 @@ Build and run
     
     $ make test_echo   #run the 'echo to all' sample  -- a chat server echoes any income msg to all cliets.
     
-    $ make test_http_server  #run sample of httpserver wrapper. 
+    $ make test_http_server  #run sample of httpserver wrapper which is an in-memory msg board. 
 
 
 
